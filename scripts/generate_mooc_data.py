@@ -36,10 +36,10 @@ def convert_mooc(max_length):
     save_path = 'data/' + task + '/' + 'whole' +'_manifold_format.pkl'
     
     with open(save_path, "wb") as f:
-        save_data_ = {'timestamps': np.asarray(file['arrival_times']),
-                     'types': np.asarray(file['marks']),
+        save_data_ = {'timestamps': np.asarray(file['arrival_times'], dtype=object),
+                     'types': np.asarray(file['marks'], dtype=object),
                      'lengths': np.asarray(lengths_list),
-                     'timeintervals': np.asarray(timeintervals_list)
+                     'timeintervals': np.asarray(timeintervals_list, dtype=object)
                       }
         pickle.dump(save_data_,f)
 
