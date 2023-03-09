@@ -55,6 +55,6 @@ def convert_helpdesk(max_length):
 if __name__ == '__main__':
     max_length = 15
     sub_dataset = ['train', 'val', 'test']
-    num_samples = [13791, 3146, 4411]
+    num_samples = [2748, 916, 916]
     save_path, process_dim = convert_helpdesk(max_length)
     process_seq(save_path, sub_dataset, num_samples, process_dim=process_dim)

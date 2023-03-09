@@ -7,24 +7,29 @@ import torch.utils.data as data_utils
 from pathlib import Path
 import os
 
-def load_dataset(dataset_dir, event_type_num, batch_size, val_batch_size=None, scale_normalization=50.0, device=None, **kwargs):
+
+def load_dataset(dataset_dir, event_type_num, batch_size, val_batch_size=None, scale_normalization=50.0, device=None,
+                 **kwargs):
     print('loading datasets...')
 
     if val_batch_size == None:
         val_batch_size = batch_size
-    
+
     train_set = SequenceDataset(
-        dataset_dir, mode='train', batch_size=batch_size, event_type_num=event_type_num, scale_normalization=scale_normalization, device=device
+            dataset_dir, mode='train', batch_size=batch_size, event_type_num=event_type_num,
+            scale_normalization=scale_normalization, device=device
     )
 
     validation_set = SequenceDataset(
-        dataset_dir, mode='val', batch_size=val_batch_size, event_type_num=event_type_num, scale_normalization=scale_normalization, device=device
+            dataset_dir, mode='val', batch_size=val_batch_size, event_type_num=event_type_num,
+            scale_normalization=scale_normalization, device=device
     )
 
     test_set = SequenceDataset(
-        dataset_dir, mode='test', batch_size=val_batch_size, event_type_num=event_type_num, scale_normalization=scale_normalization, device=device
+            dataset_dir, mode='test', batch_size=val_batch_size, event_type_num=event_type_num,
+            scale_normalization=scale_normalization, device=device
     )
-    
+
     max_t_normalization = train_set.max_t
     for dataset in [train_set, validation_set, test_set]:
         setattr(dataset, 'max_t_normalization', max_t_normalization)
@@ -35,18 +40,23 @@ def load_dataset(dataset_dir, event_type_num, batch_size, val_batch_size=None, s
     test_set.normalize(mean_in_train, std_in_train)
 
     data = {}
-    data['train_loader'] = torch.utils.data.DataLoader(train_set, batch_size=batch_size, shuffle=True, collate_fn=collate)
-    data['val_loader']  = torch.utils.data.DataLoader(validation_set, batch_size=val_batch_size, shuffle=False, collate_fn=collate)
-    data['test_loader'] = torch.utils.data.DataLoader(test_set, batch_size=val_batch_size, shuffle=False, collate_fn=collate)
+    data['train_loader'] = torch.utils.data.DataLoader(train_set, batch_size=batch_size, shuffle=True,
+                                                       collate_fn=collate)
+    data['val_loader'] = torch.utils.data.DataLoader(validation_set, batch_size=val_batch_size, shuffle=False,
+                                                     collate_fn=collate)
+    data['test_loader'] = torch.utils.data.DataLoader(test_set, batch_size=val_batch_size, shuffle=False,
+                                                      collate_fn=collate)
 
-    max_t = max([train_set.max_t, validation_set.max_t, test_set.max_t])/max_t_normalization*scale_normalization \
+    max_t = max([train_set.max_t, validation_set.max_t, test_set.max_t]) / max_t_normalization * scale_normalization \
         if scale_normalization != 0 else max([train_set.max_t, validation_set.max_t, test_set.max_t])
-    
+
     if hasattr(train_set, 'granger_graph'):
         granger_graph = train_set.granger_graph
-    else: granger_graph = None
+    else:
+        granger_graph = None
 
-    return data, {'train':train_set.seq_lengths, 'val':validation_set.seq_lengths, 'test': test_set.seq_lengths}, max_t, granger_graph
+    return data, {'train': train_set.seq_lengths, 'val': validation_set.seq_lengths,
+                  'test': test_set.seq_lengths}, max_t, granger_graph
 
 
 class SequenceDataset(data_utils.Dataset):
@@ -56,9 +66,10 @@ class SequenceDataset(data_utils.Dataset):
         delta_times: Inter-arrival times between events. List of variable length sequences.
 
     """
+
     def __init__(self, dataset_dir, mode, batch_size, event_type_num, device=None, scale_normalization=50.0):
         if device is None:
-            self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu") 
+            self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         else:
             self.device = device
 
@@ -75,31 +86,32 @@ class SequenceDataset(data_utils.Dataset):
         self.data = data
         self.process_data()
 
-
     def load_processed(self):
         with open(self.processed_path, 'rb') as f:
             self.dataset = pickle.load(f)
         self.in_times, self.out_times, self.in_dts, self.out_dts, self.in_types, self.out_types, \
             self.in_multi_times, self.in_multi_types, self.in_multi_dts, self.in_multi_positions = \
-                self.dataset['in_times'], self.dataset['out_times'], self.dataset['in_dts'], self.dataset['out_dts'],\
-                self.dataset['in_types'], self.dataset['out_types'], self.dataset['in_multi_times'], self.dataset['in_multi_types'],\
+            self.dataset['in_times'], self.dataset['out_times'], self.dataset['in_dts'], self.dataset['out_dts'], \
+                self.dataset['in_types'], self.dataset['out_types'], self.dataset['in_multi_times'], self.dataset[
+                'in_multi_types'], \
                 self.dataset['in_multi_dts'], self.dataset['in_multi_positions']
-
 
     def process_data(self):
         # print('processing dataset and saving in {}...'.format(self.processed_path))
 
         self.seq_times, self.seq_types, self.seq_lengths, self.seq_dts, self.event_times_multivariate, \
-        self.event_types_multivariate, self.event_intervals_multivariate, self.event_positions_multivariate, self.max_t = \
-            self.data['timestamps'], self.data['types'], self.data['lengths'], self.data['intervals'], self.data['event_times_multivariate'],\
-            self.data['event_types_multivariate'], self.data['event_intervals_multivariate'], self.data['event_positions_multivariate'], self.data['t_max']
-        
+            self.event_types_multivariate, self.event_intervals_multivariate, self.event_positions_multivariate, self.max_t = \
+            self.data['timestamps'], self.data['types'], self.data['lengths'], self.data['intervals'], self.data[
+                'event_times_multivariate'], \
+                self.data['event_types_multivariate'], self.data['event_intervals_multivariate'], self.data[
+                'event_positions_multivariate'], self.data['t_max']
+
         self.max_t = np.concatenate(self.data['timestamps']).max()
         self.seq_lengths = torch.Tensor(self.seq_lengths)
 
         self.in_times = [torch.Tensor(t[:-1]) for t in self.seq_times]
         self.out_times = [torch.Tensor(t[1:]) for t in self.seq_times]
-        
+
         self.in_dts = [torch.Tensor(dt[:-1]) for dt in self.seq_dts]
         self.out_dts = [torch.Tensor(dt[1:]) for dt in self.seq_dts]
 
@@ -108,10 +120,10 @@ class SequenceDataset(data_utils.Dataset):
 
         self.validate_times()
 
-        self.in_multi_times = [[torch.Tensor(t) for t in ts] for ts in self.event_times_multivariate] 
-        self.in_multi_types = [[torch.Tensor(m) for m in ms] for ms in self.event_types_multivariate] 
+        self.in_multi_times = [[torch.Tensor(t) for t in ts] for ts in self.event_times_multivariate]
+        self.in_multi_types = [[torch.Tensor(m) for m in ms] for ms in self.event_types_multivariate]
         # self.in_multi_dts = [[torch.Tensor(t) for t in ts] for ts in self.event_intervals_multivariate] 
-        self.in_multi_positions = [[torch.Tensor(p) for p in ps] for ps in self.event_positions_multivariate] 
+        self.in_multi_positions = [[torch.Tensor(p) for p in ps] for ps in self.event_positions_multivariate]
 
         # self.dataset = {
         #     'in_times': self.in_times,
@@ -127,7 +139,6 @@ class SequenceDataset(data_utils.Dataset):
         #     'max_t': self.max_t
         # }
 
-
     @property
     def num_series(self):
         return len(self.in_times)
@@ -135,7 +146,7 @@ class SequenceDataset(data_utils.Dataset):
     def get_time_statistics(self):
         flat_in_times = torch.cat(self.in_times)
         return flat_in_times.mean(), flat_in_times.std()
-    
+
     def validate_times(self):
         if len(self.in_times) != len(self.out_times):
             raise ValueError("in_times and out_times have different lengths.")
@@ -156,7 +167,7 @@ class SequenceDataset(data_utils.Dataset):
 
         if self.scale_normalization != 0:
             self.out_times = [t / self.max_t_normalization * self.scale_normalization for t in self.out_times]
-            self.out_dts= [t / self.max_t_normalization * self.scale_normalization for t in self.out_dts]
+            self.out_dts = [t / self.max_t_normalization * self.scale_normalization for t in self.out_dts]
 
         return self
 
@@ -177,7 +188,8 @@ class SequenceDataset(data_utils.Dataset):
 
     def __getitem__(self, key):
         return self.in_times[key], self.out_dts[key], self.in_types[key], self.out_types[key], self.seq_lengths[key], \
-             self.in_multi_times[key], self.in_multi_types[key], self.in_multi_positions[key], self.event_type_num, self.device
+            self.in_multi_times[key], self.in_multi_types[key], self.in_multi_positions[
+            key], self.event_type_num, self.device
 
     def __len__(self):
         return self.num_series
@@ -185,11 +197,14 @@ class SequenceDataset(data_utils.Dataset):
     def __repr__(self):
         return f"SequenceDataset({self.num_series})"
 
-def collate(batch):
 
+def collate(batch):
     def pad_multivariate(multi_seq, padding_value=0):
-        multi_seq = [torch.nn.utils.rnn.pad_sequence(seq, batch_first=True, padding_value=padding_value).permute(1,0) for seq in multi_seq]
-        return torch.nn.utils.rnn.pad_sequence(multi_seq, batch_first=True, padding_value=padding_value).permute(0,2,1)
+        multi_seq = [torch.nn.utils.rnn.pad_sequence(seq, batch_first=True, padding_value=padding_value).permute(1, 0)
+                     for seq in multi_seq]
+        return torch.nn.utils.rnn.pad_sequence(multi_seq, batch_first=True, padding_value=padding_value).permute(0, 2,
+                                                                                                                 1)
+
     device = batch[0][9]
     batch = sorted(batch, key=lambda x: len(x[0]), reverse=True)
     in_times = [item[0] for item in batch]
@@ -211,23 +226,24 @@ def collate(batch):
     in_multi_times = pad_multivariate(in_multi_times, padding_value=0.0)
     in_multi_types = pad_multivariate(in_multi_types, padding_value=event_type_num)
     in_multi_positions = pad_multivariate(in_multi_positions, padding_value=-1)
-    
+
     out_onehots = one_hot_embedding(out_types, event_type_num + 1)
     return Batch(
-        in_times.to(device), 
-        in_types.to(device), 
-        in_multi_times.to(device), 
-        in_multi_types.to(device), 
-        in_multi_positions.to(device), 
-        seq_lengths.to(device), 
-        out_dts.to(device), 
-        out_types.to(device),
-        out_onehots.to(device)
-        )
+            in_times.to(device),
+            in_types.to(device),
+            in_multi_times.to(device),
+            in_multi_types.to(device),
+            in_multi_positions.to(device),
+            seq_lengths.to(device),
+            out_dts.to(device),
+            out_types.to(device),
+            out_onehots.to(device)
+    )
 
 
 class Batch():
-    def __init__(self, in_times, in_types, in_multi_times, in_multi_types, in_multi_positions, seq_lengths, out_dts, out_types, out_onehots):
+    def __init__(self, in_times, in_types, in_multi_times, in_multi_types, in_multi_positions, seq_lengths, out_dts,
+                 out_types, out_onehots):
         self.in_times = in_times
         self.in_types = in_types.long()
         self.in_multi_times = in_multi_times
