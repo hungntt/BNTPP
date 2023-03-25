@@ -5,6 +5,7 @@ import nni
 import torch
 from tqdm import tqdm
 
+import numpy as np
 from dataset.dataloader import load_dataset
 from models import EDTPP
 from models.lib import optimizers, utils
