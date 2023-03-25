@@ -1,9 +1,11 @@
 log_level: INFO
 
+fold: 0
+
 data:
-  batch_size: 64
+  batch_size: 16
   dataset_dir: data/helpdesk/
-  val_batch_size: 64
+  val_batch_size: 16
   event_type_num: 15
 
 model:

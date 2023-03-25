@@ -9,25 +9,26 @@ import os
 
 
 def load_dataset(dataset_dir, event_type_num, batch_size, val_batch_size=None, scale_normalization=50.0, device=None,
+                 fold=None,
                  **kwargs):
     print('loading datasets...')
 
-    if val_batch_size == None:
+    if val_batch_size is None:
         val_batch_size = batch_size
 
     train_set = SequenceDataset(
             dataset_dir, mode='train', batch_size=batch_size, event_type_num=event_type_num,
-            scale_normalization=scale_normalization, device=device
+            scale_normalization=scale_normalization, device=device, fold=fold,
     )
 
     validation_set = SequenceDataset(
             dataset_dir, mode='val', batch_size=val_batch_size, event_type_num=event_type_num,
-            scale_normalization=scale_normalization, device=device
+            scale_normalization=scale_normalization, device=device, fold=fold,
     )
 
     test_set = SequenceDataset(
             dataset_dir, mode='test', batch_size=val_batch_size, event_type_num=event_type_num,
-            scale_normalization=scale_normalization, device=device
+            scale_normalization=scale_normalization, device=device, fold=fold,
     )
 
     max_t_normalization = train_set.max_t
@@ -67,13 +68,13 @@ class SequenceDataset(data_utils.Dataset):
 
     """
 
-    def __init__(self, dataset_dir, mode, batch_size, event_type_num, device=None, scale_normalization=50.0):
+    def __init__(self, dataset_dir, mode, batch_size, event_type_num, device=None, scale_normalization=50.0, fold=None):
         if device is None:
             self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         else:
             self.device = device
 
-        self.file = dataset_dir + mode + '_manifold_format.pkl'
+        self.file = f'{dataset_dir}{mode}_manifold_format{fold}.pkl'
         self.event_type_num = event_type_num
         self.bs = batch_size
         self.scale_normalization = scale_normalization

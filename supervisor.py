@@ -16,6 +16,7 @@ torch.set_num_threads(4)
 class Supervisor:
     def __init__(self, **kwargs) -> None:
         self._kwargs = kwargs
+        self._fold = kwargs.get('fold')
         self._data_kwargs = kwargs.get('data')
         self._model_kwargs = kwargs.get('model')
         self._train_kwargs = kwargs.get('train')
@@ -28,6 +29,7 @@ class Supervisor:
         self._logger = get_logger(self._log_dir, __name__, 'info.log', level=log_level)
 
         self._data, self._seq_lengths, self._max_t, self._granger_graph = load_dataset(device=self._device,
+                                                                                       fold=self._fold,
                                                                                        **self._data_kwargs)
         self._event_type_num = self._data_kwargs['event_type_num']
 
@@ -266,8 +268,8 @@ class Supervisor:
         for i in range(n):
             epoch_num = epoch_list[i]
             self.load_model(epoch_num)
-            test_event_num, test_epoch_log_loss, test_epoch_ce_loss, test_epoch_ape, test_epoch_top1_acc, test_epoch_top3_acc = self._evaluate(
-                    dataset='test', verbose=True)
+            test_event_num, test_epoch_log_loss, test_epoch_ce_loss, test_epoch_ape, test_epoch_top1_acc, \
+                test_epoch_top3_acc = self._evaluate(dataset='test', verbose=True)
             test_loss = test_epoch_log_loss / test_event_num
             message = '---Epoch.{} Test Negative Log-Likelihood per event: {:5f}; Cross-Entropy per event: {:5f}; ' \
                       'MAPE: {:5f}; Acc_Top1: {:5f}, Acc_Top3: {:5f}   ' \
