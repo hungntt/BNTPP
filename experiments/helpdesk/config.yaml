@@ -1,6 +1,6 @@
 log_level: INFO
 
-fold: 0
+fold: 4
 
 data:
   batch_size: 16
@@ -24,7 +24,7 @@ model:
   intra_encoding: False
 
 train:
-  epochs: 100
+  epochs: 1000
   lr: 5.0e-3
   log_dir: experiments/helpdesk/
   lr_decay_ratio: 0.5
