@@ -61,7 +61,11 @@ def convert_sequences(loaded_data, process_dim):
 
 
 def process_seq(dataset_dir, sub_datasets, num_samples, process_dim, fold=None):
-    with open(dataset_dir + 'whole_manifold_format.pkl', 'rb') as f:
+    if fold is not None:
+        path = dataset_dir + f'whole_fold{fold}_manifold_format.pkl'
+    else:
+        path = dataset_dir + 'whole_manifold_format.pkl'
+    with open(path, 'rb') as f:
         data = pickle.load(f)
     print('process dataset...')
     seq_times, seq_types, seq_lengths, seq_intervals = data['timestamps'], data['types'], data['lengths'], data[
