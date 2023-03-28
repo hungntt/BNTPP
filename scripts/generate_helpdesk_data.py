@@ -18,12 +18,15 @@ def convert_helpdesk(max_length, fold):
     seqs = file['sequences']
     one_seq_num = 0
     for seq in seqs:
+        # Add dummy event at the end of marks and timestamps
+        seq['arrival_times'].append(seq['t_end'])
+        seq['marks'].append(dim_process)
         t_start = seq['t_start']
         timestamps = np.array(seq['arrival_times']) - t_start
         timestamps = timestamps[:max_length]
         types = np.array(seq['marks'])[:max_length]
         timeintervals = np.ediff1d(np.concatenate([[0], timestamps]))
-
+        # Add dummy event at the end
         lengths = len(timestamps)
         if lengths == 1:
             one_seq_num += 1
@@ -33,6 +36,8 @@ def convert_helpdesk(max_length, fold):
         lengths_list.append(np.asarray(lengths))
         timeintervals_list.append(np.asarray(timeintervals))
 
+    divisor = np.mean([item for timestamps in timeintervals_list for item in timestamps])
+    timeintervals_list = [np.asarray(timeintervals) / divisor for timeintervals in timeintervals_list]
     print('one_seq_num: {}'.format(one_seq_num))
     dataset_dir = f'data/{task}/'
     save_path = f'data/{task}/whole_fold{fold}_manifold_format.pkl'
@@ -40,7 +45,7 @@ def convert_helpdesk(max_length, fold):
         save_data_ = {'timestamps': np.asarray(timestamps_list, dtype=object),
                       'types': np.asarray(types_list, dtype=object),
                       'lengths': np.asarray(lengths_list),
-                      'timeintervals': np.asarray(timeintervals_list, dtype=object)
+                      'timeintervals': np.asarray(timeintervals_list, dtype=object),
                       }
         pickle.dump(save_data_, f)
     return dataset_dir, dim_process

@@ -89,7 +89,7 @@ class EDTPP(nn.Module):
         else:
             self.granger_graph = None
 
-        if self.variational_discovery == False:
+        if not self.variational_discovery:
             self.relation_discover = RelationDiscover(self.embed_dim // 2)
         else:
             self.variational_relation_discover = SequenceEmbedding(self.embed_dim, event_type_num)

@@ -49,9 +49,9 @@ def convert_sequences(loaded_data, process_dim):
             one_seq_intervals.append(one_seq_dt)
 
         assert np.concatenate(one_seq_positions).max() == (
-                    np.concatenate(one_seq_types) != process_dim).sum() - process_dim - 1
+                np.concatenate(one_seq_types) != process_dim).sum() - process_dim - 1
         assert len(one_seq_times) == process_dim == len(one_seq_types) == len(one_seq_intervals) == len(
-            one_seq_positions)
+                one_seq_positions)
         event_times_multivariate.append(one_seq_times)
         event_types_multivariate.append(one_seq_types)
         event_intervals_multivariate.append(one_seq_intervals)
@@ -70,6 +70,7 @@ def process_seq(dataset_dir, sub_datasets, num_samples, process_dim, fold=None):
     print('process dataset...')
     seq_times, seq_types, seq_lengths, seq_intervals = data['timestamps'], data['types'], data['lengths'], data[
         'timeintervals']
+
     t_max = np.concatenate(seq_times).max()
 
     event_times_multivariate, event_types_multivariate, event_intervals_multivariate, event_positions_multivariate \

@@ -1,12 +1,12 @@
 log_level: INFO
 
-fold: 4
+fold: 0
 
 data:
   batch_size: 16
   dataset_dir: data/helpdesk/
   val_batch_size: 16
-  event_type_num: 15
+  event_type_num: 16
 
 model:
   encoder_type: GRU #FNet, RNN, LSTM, GRU, Attention
