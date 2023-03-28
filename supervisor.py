@@ -329,8 +329,12 @@ class Supervisor:
         # batch_seq_type: (batch_size, seq_len)
         try:
             top_pred = torch.argsort(pred_event_prob, dim=-1, descending=True)[..., :top]
-            gt = batch_seq_type.unsqueeze(-1).expand_as(top_pred)
-            correct = top_pred.eq(gt)
+            # Add one more dimension to top_pred (from [4,1] to [1,4,1])
+            top_pred = top_pred.unsqueeze(0)
+            # print('Model pred: ', top_pred)
+            gt = batch_seq_type.unsqueeze(-1)
+            # print('Ground truth: ', gt)
+            correct = top_pred.eq(gt.expand_as(top_pred))
             correct_k = correct.view(-1).float().sum(0)
             return correct_k
         except:

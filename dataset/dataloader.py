@@ -242,7 +242,7 @@ def collate(batch):
     )
 
 
-class Batch():
+class Batch:
     def __init__(self, in_times, in_types, in_multi_times, in_multi_types, in_multi_positions, seq_lengths, out_dts,
                  out_types, out_onehots):
         self.in_times = in_times

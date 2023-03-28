@@ -36,8 +36,6 @@ def convert_helpdesk(max_length, fold):
         lengths_list.append(np.asarray(lengths))
         timeintervals_list.append(np.asarray(timeintervals))
 
-    divisor = np.mean([item for timestamps in timeintervals_list for item in timestamps])
-    timeintervals_list = [np.asarray(timeintervals) / divisor for timeintervals in timeintervals_list]
     print('one_seq_num: {}'.format(one_seq_num))
     dataset_dir = f'data/{task}/'
     save_path = f'data/{task}/whole_fold{fold}_manifold_format.pkl'
