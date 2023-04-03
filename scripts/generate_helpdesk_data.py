@@ -1,4 +1,7 @@
 import pickle
+import time
+from datetime import datetime
+
 import numpy as np
 from process_batch_seq import process_seq
 import torch
@@ -9,6 +12,8 @@ def convert_helpdesk(max_length, fold):
     types_list = []
     lengths_list = []
     timeintervals_list = []
+    timesincemidnight_list = []
+    timediffweekend_list = []
     task = 'helpdesk'
 
     file_path = f'data/{task}/whole_dataset_fold{fold}.pkl'
@@ -21,7 +26,13 @@ def convert_helpdesk(max_length, fold):
         # Add dummy event at the end of marks and timestamps
         seq['arrival_times'].append(seq['t_end'])
         seq['marks'].append(dim_process)
+        # Store timestamps in the midnight type
+        timesincemidnight = [(datetime.fromtimestamp(arrival_time) - datetime.fromtimestamp(arrival_time).replace(
+                hour=0, minute=0, second=0, microsecond=0)).seconds for arrival_time in seq['arrival_times']]
+        timediffweekend = [datetime.fromtimestamp(arrival_time).weekday() for arrival_time in seq['arrival_times']]
+
         t_start = seq['t_start']
+
         timestamps = np.array(seq['arrival_times']) - t_start
         timestamps = timestamps[:max_length]
         types = np.array(seq['marks'])[:max_length]
@@ -31,6 +42,8 @@ def convert_helpdesk(max_length, fold):
         if lengths == 1:
             one_seq_num += 1
             continue
+        timesincemidnight_list.append(np.asarray(timesincemidnight))
+        timediffweekend_list.append(np.asarray(timediffweekend))
         timestamps_list.append(np.asarray(timestamps))
         types_list.append(np.asarray(types))
         lengths_list.append(np.asarray(lengths))
@@ -44,6 +57,8 @@ def convert_helpdesk(max_length, fold):
                       'types': np.asarray(types_list, dtype=object),
                       'lengths': np.asarray(lengths_list),
                       'timeintervals': np.asarray(timeintervals_list, dtype=object),
+                      'timesincemidnight': np.asarray(timesincemidnight_list, dtype=object),
+                      'timediffweekend': np.asarray(timediffweekend_list, dtype=object)
                       }
         pickle.dump(save_data_, f)
     return dataset_dir, dim_process

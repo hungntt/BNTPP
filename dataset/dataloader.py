@@ -90,28 +90,34 @@ class SequenceDataset(data_utils.Dataset):
     def load_processed(self):
         with open(self.processed_path, 'rb') as f:
             self.dataset = pickle.load(f)
-        self.in_times, self.out_times, self.in_dts, self.out_dts, self.in_types, self.out_types, \
-            self.in_multi_times, self.in_multi_types, self.in_multi_dts, self.in_multi_positions = \
+        self.in_times, \
+            self.out_times, self.in_dts, self.out_dts, self.in_types, self.out_types, \
+            self.in_multi_times, self.in_multi_types, self.in_multi_dts, self.in_multi_positions, \
+            self.in_times_since_midnight, self.in_times_diff_weekend = \
             self.dataset['in_times'], self.dataset['out_times'], self.dataset['in_dts'], self.dataset['out_dts'], \
                 self.dataset['in_types'], self.dataset['out_types'], self.dataset['in_multi_times'], self.dataset[
-                'in_multi_types'], \
-                self.dataset['in_multi_dts'], self.dataset['in_multi_positions']
+                'in_multi_types'], self.dataset['in_multi_dts'], self.dataset['in_multi_positions'], self.dataset[
+                'in_times_since_midnight'], self.dataset['in_times_diff_weekend']
 
     def process_data(self):
         # print('processing dataset and saving in {}...'.format(self.processed_path))
 
         self.seq_times, self.seq_types, self.seq_lengths, self.seq_dts, self.event_times_multivariate, \
-            self.event_types_multivariate, self.event_intervals_multivariate, self.event_positions_multivariate, self.max_t = \
-            self.data['timestamps'], self.data['types'], self.data['lengths'], self.data['intervals'], self.data[
-                'event_times_multivariate'], \
-                self.data['event_types_multivariate'], self.data['event_intervals_multivariate'], self.data[
-                'event_positions_multivariate'], self.data['t_max']
+            self.event_types_multivariate, self.event_intervals_multivariate, self.event_positions_multivariate, \
+            self.max_t, self.time_since_midnight, self.time_diff_weekend = \
+            self.data['timestamps'], self.data['types'], self.data['lengths'], self.data['intervals'], \
+                self.data['event_times_multivariate'], self.data['event_types_multivariate'], \
+                self.data['event_intervals_multivariate'], self.data['event_positions_multivariate'], \
+                self.data['t_max'], self.data['time_since_midnight'], self.data['time_diff_weekend']
 
         self.max_t = np.concatenate(self.data['timestamps']).max()
         self.seq_lengths = torch.Tensor(self.seq_lengths)
 
         self.in_times = [torch.Tensor(t[:-1]) for t in self.seq_times]
         self.out_times = [torch.Tensor(t[1:]) for t in self.seq_times]
+
+        self.in_times_since_midnight = [torch.Tensor(t[:-1]) for t in self.time_since_midnight]
+        self.in_times_diff_weekend = [torch.Tensor(t[:-1]) for t in self.time_diff_weekend]
 
         self.in_dts = [torch.Tensor(dt[:-1]) for dt in self.seq_dts]
         self.out_dts = [torch.Tensor(dt[1:]) for dt in self.seq_dts]
@@ -123,7 +129,7 @@ class SequenceDataset(data_utils.Dataset):
 
         self.in_multi_times = [[torch.Tensor(t) for t in ts] for ts in self.event_times_multivariate]
         self.in_multi_types = [[torch.Tensor(m) for m in ms] for ms in self.event_types_multivariate]
-        # self.in_multi_dts = [[torch.Tensor(t) for t in ts] for ts in self.event_intervals_multivariate] 
+        # self.in_multi_dts = [[torch.Tensor(t) for t in ts] for ts in self.event_intervals_multivariate]
         self.in_multi_positions = [[torch.Tensor(p) for p in ps] for ps in self.event_positions_multivariate]
 
         # self.dataset = {
@@ -160,11 +166,13 @@ class SequenceDataset(data_utils.Dataset):
 
     def normalize(self, mean_in=None, std_in=None):
         """Apply mean-std normalization to times."""
+        # average time between events
         if mean_in is None or std_in is None:
             mean_in, std_in = self.get_mean_std_in()
         self.in_times = [(t - mean_in) / std_in for t in self.in_times]
         self.in_dts = [(t - mean_in) / std_in for t in self.in_dts]
-        # self.in_multi_dts = [[(t - mean_in) / std_in for t in ts] for ts in self.in_multi_dts]
+        self.in_times_since_midnight = [t / 86400 for t in self.in_times_since_midnight]
+        self.in_times_diff_weekend = [t / 7 for t in self.in_times_diff_weekend]
 
         if self.scale_normalization != 0:
             self.out_times = [t / self.max_t_normalization * self.scale_normalization for t in self.out_times]
@@ -190,7 +198,7 @@ class SequenceDataset(data_utils.Dataset):
     def __getitem__(self, key):
         return self.in_times[key], self.out_dts[key], self.in_types[key], self.out_types[key], self.seq_lengths[key], \
             self.in_multi_times[key], self.in_multi_types[key], self.in_multi_positions[
-            key], self.event_type_num, self.device
+            key], self.event_type_num, self.device, self.in_times_since_midnight[key], self.in_times_diff_weekend[key]
 
     def __len__(self):
         return self.num_series
@@ -218,11 +226,15 @@ def collate(batch):
     in_multi_types = [item[6] for item in batch]
     in_multi_positions = [item[7] for item in batch]
     event_type_num = batch[0][8]
+    in_times_midnight = [item[10] for item in batch]
+    in_times_diff_weekend = [item[11] for item in batch]
 
     in_times = torch.nn.utils.rnn.pad_sequence(in_times, batch_first=True, padding_value=0.0)
     out_dts = torch.nn.utils.rnn.pad_sequence(out_dts, batch_first=True, padding_value=0.0)
     in_types = torch.nn.utils.rnn.pad_sequence(in_types, batch_first=True, padding_value=event_type_num)
     out_types = torch.nn.utils.rnn.pad_sequence(out_types, batch_first=True, padding_value=event_type_num)
+    in_times_midnight = torch.nn.utils.rnn.pad_sequence(in_times_midnight, batch_first=True, padding_value=0.0)
+    in_times_diff_weekend = torch.nn.utils.rnn.pad_sequence(in_times_diff_weekend, batch_first=True, padding_value=0.0)
 
     in_multi_times = pad_multivariate(in_multi_times, padding_value=0.0)
     in_multi_types = pad_multivariate(in_multi_types, padding_value=event_type_num)
@@ -235,6 +247,8 @@ def collate(batch):
             in_multi_times.to(device),
             in_multi_types.to(device),
             in_multi_positions.to(device),
+            in_times_midnight.to(device),
+            in_times_diff_weekend.to(device),
             seq_lengths.to(device),
             out_dts.to(device),
             out_types.to(device),
@@ -243,13 +257,15 @@ def collate(batch):
 
 
 class Batch:
-    def __init__(self, in_times, in_types, in_multi_times, in_multi_types, in_multi_positions, seq_lengths, out_dts,
-                 out_types, out_onehots):
+    def __init__(self, in_times, in_types, in_multi_times, in_multi_types, in_multi_positions, in_times_midnight,
+                 in_times_diff_weekend, seq_lengths, out_dts, out_types, out_onehots):
         self.in_times = in_times
         self.in_types = in_types.long()
         self.in_multi_times = in_multi_times
         self.in_multi_types = in_multi_types.long()
         self.in_multi_positions = in_multi_positions.long()
+        self.in_times_midnight = in_times_midnight
+        self.in_times_diff_weekend = in_times_diff_weekend
         self.seq_lengths = seq_lengths
         self.out_dts = out_dts
         self.out_types = out_types.long()

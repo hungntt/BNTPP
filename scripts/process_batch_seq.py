@@ -68,8 +68,8 @@ def process_seq(dataset_dir, sub_datasets, num_samples, process_dim, fold=None):
     with open(path, 'rb') as f:
         data = pickle.load(f)
     print('process dataset...')
-    seq_times, seq_types, seq_lengths, seq_intervals = data['timestamps'], data['types'], data['lengths'], data[
-        'timeintervals']
+    seq_times, seq_types, seq_lengths, seq_intervals, seq_midnight, seq_diffweekend = data['timestamps'], data['types'], \
+        data['lengths'], data['timeintervals'], data['timesincemidnight'], data['timediffweekend']
 
     t_max = np.concatenate(seq_times).max()
 
@@ -92,6 +92,10 @@ def process_seq(dataset_dir, sub_datasets, num_samples, process_dim, fold=None):
                                                           np.sum(num_samples_[:i + 1]):np.sum(num_samples_[:i + 2])],
                           'event_positions_multivariate': event_positions_multivariate[
                                                           np.sum(num_samples_[:i + 1]):np.sum(num_samples_[:i + 2])],
-                          't_max': t_max
+                          't_max': t_max,
+                          'time_since_midnight': seq_midnight[
+                                                 np.sum(num_samples_[:i + 1]):np.sum(num_samples_[:i + 2])],
+                          'time_diff_weekend': seq_diffweekend[
+                                               np.sum(num_samples_[:i + 1]):np.sum(num_samples_[:i + 2])],
                           }
             pickle.dump(save_data_, f)
