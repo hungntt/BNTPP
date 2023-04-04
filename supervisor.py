@@ -338,11 +338,11 @@ class Supervisor:
             # print('Ground truth: ', gt)
             correct = top_pred.eq(gt.expand_as(top_pred))
             correct_k = correct.view(-1).float().sum(0)
-            if top == 1:
-                print('Top pred: ', top_pred)
-                print('Ground truth: ', gt)
-                print('Correct: ', correct)
-                print('Correct_k: ', correct_k)
+            # if top == 1:
+            #     print('Top pred: ', top_pred)
+            #     print('Ground truth: ', gt)
+            #     print('Correct: ', correct)
+            #     print('Correct_k: ', correct_k)
             return correct_k
         except:
             return torch.tensor(-1)
