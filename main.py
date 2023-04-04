@@ -9,6 +9,7 @@ from pathlib import Path
 import os
 import json
 from models.lib.utils import SetSeed
+import matplotlib.pyplot as plt
 
 
 def main(args):
@@ -28,6 +29,9 @@ def main(args):
         supervisor = Supervisor(**supervisor_config)
 
         supervisor.train()
+        # Visualize the loss
+        plt.plot(supervisor.loss_list)
+        plt.show()
         supervisor._test_final_n_epoch(1)
 
 

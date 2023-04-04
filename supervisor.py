@@ -28,7 +28,7 @@ class Supervisor:
         # self._device = torch.device("cuda" if torch.cuda.is_available() else "cpu") 
         log_level = self._kwargs.get('log_level', 'INFO')
         self._logger = get_logger(self._log_dir, __name__, 'info.log', level=log_level)
-
+        self.loss_list = []
         self._data, self._seq_lengths, self._max_t, self._granger_graph = load_dataset(device=self._device,
                                                                                        fold=self._fold,
                                                                                        **self._data_kwargs)
@@ -39,18 +39,18 @@ class Supervisor:
 
         self.max_grad_norm = self._train_kwargs.get('max_grad_norm', 5.0)
         self._model = EDTPP(
-            event_type_num=self._event_type_num,
-            device=self._device,
-            **self._model_kwargs
+                event_type_num=self._event_type_num,
+                device=self._device,
+                **self._model_kwargs
         )
 
         if self._train_kwargs['relation_inference'] is False and self._model_kwargs['intra_encoding'] is True:
             assert self._granger_graph is not None, 'The prior graph is not provided!'
             self._model = EDTPP(
-                event_type_num=self._data_kwargs['event_type_num'],
-                prior_graph=self._granger_graph,
-                device=self._device,
-                **self._model_kwargs
+                    event_type_num=self._data_kwargs['event_type_num'],
+                    prior_graph=self._granger_graph,
+                    device=self._device,
+                    **self._model_kwargs
             )
         self._model.to(self._device)
         self._logger.info("Model created")
@@ -111,7 +111,7 @@ class Supervisor:
         min_val_loss = float('inf')
         wait = 0
 
-        message = "the number of trainable parameters: " + str(utils.count_parameters(self._model))
+        message = 'the number of trainable parameters: ' + str(utils.count_parameters(self._model))
         self._logger.info(message)
         self._logger.info('Start training the model ...')
         self._evaluate(dataset='test', verbose=True)
@@ -122,7 +122,7 @@ class Supervisor:
             epoch_train_loss = 0
 
             train_iterator = self._data['train_loader']
-            progress_bar = tqdm(train_iterator, unit="batch")
+            progress_bar = tqdm(train_iterator, unit='batch')
 
             for _, batch in enumerate(progress_bar):
                 self.model_opt.optimizer.zero_grad()
@@ -144,41 +144,43 @@ class Supervisor:
             train_event_num = torch.sum(self._seq_lengths['train']).float()
 
             lr_scheduler.step()
-            val_event_num, epoch_val_log_loss, epoch_val_ce_loss, epoch_val_ape, epoch_val_ae, epoch_val_top1_acc, epoch_val_top3_acc = self._evaluate(
-                dataset='val')
+            val_event_num, epoch_val_log_loss, epoch_val_ce_loss, epoch_val_ape, epoch_val_ae, \
+                epoch_val_top1_acc, epoch_val_top3_acc = self._evaluate(dataset='val')
             nni.report_intermediate_result((epoch_val_log_loss / val_event_num).item())
 
             if (epoch_num % log_every) == log_every - 1:
                 message = '---Epoch.{} Train Negative Overall Log-Likelihood per event: {:5f}. ' \
                     .format(epoch_num, epoch_train_loss / train_event_num)
                 self._logger.info(message)
+                self.loss_list.append(epoch_train_loss / train_event_num)
+
 
                 message = '---Epoch.{} Val Negative Log-Likelihood per event: {:5f}; Cross-Entropy per event: {:5f}; ' \
                           'MAPE: {:5f}; MAE: {:5f}; Acc_Top1: {:5f}, Acc_Top3: {:5f}   ' \
                     .format(
-                    epoch_num,
-                    epoch_val_log_loss / val_event_num,
-                    epoch_val_ce_loss / val_event_num,
-                    epoch_val_ape / val_event_num,
-                    epoch_val_ae / val_event_num,
-                    epoch_val_top1_acc / val_event_num,
-                    epoch_val_top3_acc / val_event_num
+                        epoch_num,
+                        epoch_val_log_loss / val_event_num,
+                        epoch_val_ce_loss / val_event_num,
+                        epoch_val_ape / val_event_num,
+                        epoch_val_ae / val_event_num,
+                        epoch_val_top1_acc / val_event_num,
+                        epoch_val_top3_acc / val_event_num
                 )
                 self._logger.info(message)
 
             if (epoch_num % test_every_n_epochs) == test_every_n_epochs - 1:
-                test_event_num, epoch_test_log_loss, epoch_test_ce_loss, epoch_test_ape, epoch_test_ae, epoch_test_top1_acc, epoch_test_top3_acc = self._evaluate(
-                    dataset='test', verbose=True)
+                test_event_num, epoch_test_log_loss, epoch_test_ce_loss, epoch_test_ape, epoch_test_ae, \
+                    epoch_test_top1_acc, epoch_test_top3_acc = self._evaluate(dataset='test', verbose=True)
                 message = '---Epoch.{} Val Negative Log-Likelihood per event: {:5f}; Cross-Entropy per event: {:5f}; ' \
                           'MAPE: {:5f}; MAE: {:5f}; Acc_Top1: {:5f}, Acc_Top3: {:5f}   ' \
                     .format(
-                    epoch_num,
-                    epoch_test_log_loss / test_event_num,
-                    epoch_test_ce_loss / test_event_num,
-                    epoch_test_ape / test_event_num,
-                    epoch_test_ae / test_event_num,
-                    epoch_test_top1_acc / test_event_num,
-                    epoch_test_top3_acc / test_event_num
+                        epoch_num,
+                        epoch_test_log_loss / test_event_num,
+                        epoch_test_ce_loss / test_event_num,
+                        epoch_test_ape / test_event_num,
+                        epoch_test_ae / test_event_num,
+                        epoch_test_top1_acc / test_event_num,
+                        epoch_test_top3_acc / test_event_num
                 )
                 self._logger.info(message)
 
@@ -189,8 +191,8 @@ class Supervisor:
                     best_epoch = epoch_num
                     model_file_name = self.save_model(epoch_num)
                     self._logger.info(
-                        'Negative Log-Likelihood decrease from {:.5f} to {:.5f}, '
-                        'saving to {}'.format(min_val_loss, epoch_val_log_loss / val_event_num, model_file_name))
+                            'Negative Log-Likelihood decrease from {:.5f} to {:.5f}, '
+                            'saving to {}'.format(min_val_loss, epoch_val_log_loss / val_event_num, model_file_name))
                 min_val_loss = epoch_val_log_loss / val_event_num
 
             # early stopping
@@ -279,13 +281,13 @@ class Supervisor:
             message = '---Epoch.{} Test Negative Log-Likelihood per event: {:5f}; Cross-Entropy per event: {:5f}; ' \
                       'MAPE: {:5f}; MAE: {:5f}; Acc_Top1: {:5f}, Acc_Top3: {:5f}   ' \
                 .format(
-                epoch_num,
-                test_epoch_log_loss / test_event_num,
-                test_epoch_ce_loss / test_event_num,
-                test_epoch_ape / test_event_num,
-                test_epoch_ae / test_event_num,
-                test_epoch_top1_acc / test_event_num,
-                test_epoch_top3_acc / test_event_num
+                    epoch_num,
+                    test_epoch_log_loss / test_event_num,
+                    test_epoch_ce_loss / test_event_num,
+                    test_epoch_ape / test_event_num,
+                    test_epoch_ae / test_event_num,
+                    test_epoch_top1_acc / test_event_num,
+                    test_epoch_top3_acc / test_event_num
             )
             self._logger.info(message)
             loss_list.append(test_loss.item())
