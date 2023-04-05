@@ -152,7 +152,7 @@ class Supervisor:
                 message = '---Epoch.{} Train Negative Overall Log-Likelihood per event: {:5f}. ' \
                     .format(epoch_num, epoch_train_loss / train_event_num)
                 self._logger.info(message)
-                self.loss_list.append(epoch_train_loss / train_event_num)
+                self.loss_list.append((epoch_train_loss / train_event_num).cpu().numpy())
 
 
                 message = '---Epoch.{} Val Negative Log-Likelihood per event: {:5f}; Cross-Entropy per event: {:5f}; ' \

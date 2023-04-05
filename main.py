@@ -31,6 +31,10 @@ def main(args):
         supervisor.train()
         # Visualize the loss
         plt.plot(supervisor.loss_list)
+        plt.title(
+            f'Loss of {supervisor_config["model"]["intensity_type"] - supervisor_config["model"]["encoder_type"]}')
+        plt.xlabel('Epoch')
+        plt.ylabel('Loss')
         plt.show()
         supervisor._test_final_n_epoch(1)
 
