@@ -32,7 +32,7 @@ def main(args):
         # Visualize the loss
         plt.plot(supervisor.loss_list)
         plt.title(
-            f'Loss of {supervisor_config["model"]["intensity_type"] - supervisor_config["model"]["encoder_type"]}')
+            f'Loss of {supervisor_config["model"]["intensity_type"]}-{supervisor_config["model"]["encoder_type"]}')
         plt.xlabel('Epoch')
         plt.ylabel('Loss')
         plt.show()
