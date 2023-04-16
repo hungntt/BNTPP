@@ -1,9 +1,10 @@
 log_level: INFO
 
 fold: 0
+time_pred_type: timestamp
 
 data:
-  batch_size: 1
+  batch_size: 128
   dataset_dir: data/helpdesk/
   val_batch_size: 16
   event_type_num: 16
@@ -19,12 +20,12 @@ model:
   layer_num: 1 # the layers number in the encoder
   dropout: 0.1
   gumbel_tau: 0.8
-  l1_lambda: 0.0
+  l1_lambda: 0.1
   use_prior_graph: False # only used when the ganger graph is given
   intra_encoding: False
 
 train:
-  epochs: 200
+  epochs: 1000
   lr: 5.0e-3
   log_dir: experiments/helpdesk_Attention/
   lr_decay_ratio: 0.5

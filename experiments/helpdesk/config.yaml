@@ -1,7 +1,7 @@
 log_level: INFO
 
 fold: 0
-time_pred_type: interval # interval, timestamp, remaining
+time_pred_type: timestamp # interval, timestamp, remaining
 
 data:
   batch_size: 128
@@ -20,19 +20,19 @@ model:
   layer_num: 1 # the layers number in the encoder
   dropout: 0.1
   gumbel_tau: 0.8
-  l1_lambda: 0.0
+  l1_lambda: 0.1
   use_prior_graph: False # only used when the ganger graph is given
   intra_encoding: False
 
 train:
-  epochs: 3
+  epochs: 1000
   lr: 5.0e-3
   log_dir: experiments/Helpdesk/
   lr_decay_ratio: 0.5
   max_grad_norm: 5
   min_learning_rate: 1.0e-06
   optimizer: adam
-  patience: 1
+  patience: 30
   steps:
   - 50
   - 60
