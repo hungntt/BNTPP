@@ -22,7 +22,7 @@ class Supervisor:
         self._data_kwargs = kwargs.get('data')
         self._model_kwargs = kwargs.get('model')
         self._train_kwargs = kwargs.get('train')
-
+        self._time_pred_type = kwargs.get('time_pred_type')
         self._experiment_name = self._train_kwargs['experiment_name']
         self._log_dir = self._get_log_dir(self, kwargs)
         self._device = torch.device("cuda:{}".format(kwargs.get('gpu')) if torch.cuda.is_available() else "cpu")

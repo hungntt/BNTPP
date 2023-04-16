@@ -9,8 +9,7 @@ import os
 
 
 def load_dataset(dataset_dir, event_type_num, batch_size, val_batch_size=None, scale_normalization=50.0, device=None,
-                 fold='',
-                 **kwargs):
+                 fold='', time_pred_type='interval', **kwargs):
     print('loading datasets...')
 
     if val_batch_size is None:
@@ -18,17 +17,17 @@ def load_dataset(dataset_dir, event_type_num, batch_size, val_batch_size=None, s
 
     train_set = SequenceDataset(
             dataset_dir, mode='train', batch_size=batch_size, event_type_num=event_type_num,
-            scale_normalization=scale_normalization, device=device, fold=fold,
+            scale_normalization=scale_normalization, device=device, fold=fold, time_pred_type=time_pred_type,
     )
 
     validation_set = SequenceDataset(
             dataset_dir, mode='val', batch_size=val_batch_size, event_type_num=event_type_num,
-            scale_normalization=scale_normalization, device=device, fold=fold,
+            scale_normalization=scale_normalization, device=device, fold=fold, time_pred_type=time_pred_type,
     )
 
     test_set = SequenceDataset(
             dataset_dir, mode='test', batch_size=val_batch_size, event_type_num=event_type_num,
-            scale_normalization=scale_normalization, device=device, fold=fold,
+            scale_normalization=scale_normalization, device=device, fold=fold, time_pred_type=time_pred_type,
     )
 
     max_t_normalization = train_set.max_t
@@ -68,7 +67,8 @@ class SequenceDataset(data_utils.Dataset):
 
     """
 
-    def __init__(self, dataset_dir, mode, batch_size, event_type_num, device=None, scale_normalization=50.0, fold=''):
+    def __init__(self, dataset_dir, mode, batch_size, event_type_num, device=None, scale_normalization=50.0, fold='',
+                 time_pred_type='interval', **kwargs):
         if device is None:
             self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         else:
@@ -78,7 +78,7 @@ class SequenceDataset(data_utils.Dataset):
         self.event_type_num = event_type_num
         self.bs = batch_size
         self.scale_normalization = scale_normalization
-
+        self.time_pred_type = time_pred_type
         if os.path.exists(dataset_dir + '/granger_graph.npy'):
             self.granger_graph = np.load(dataset_dir + '/granger_graph.npy')
 
@@ -125,20 +125,6 @@ class SequenceDataset(data_utils.Dataset):
         self.in_multi_types = [[torch.Tensor(m) for m in ms] for ms in self.event_types_multivariate]
         # self.in_multi_dts = [[torch.Tensor(t) for t in ts] for ts in self.event_intervals_multivariate]
         self.in_multi_positions = [[torch.Tensor(p) for p in ps] for ps in self.event_positions_multivariate]
-
-        # self.dataset = {
-        #     'in_times': self.in_times,
-        #     'out_times': self.out_times,
-        #     'in_dts': self.in_dts,
-        #     'out_dts': self.out_dts,
-        #     'in_types': self.in_types,
-        #     'out_types': self.out_types,
-        #     'in_multi_times': self.in_multi_times,
-        #     'in_multi_types': self.in_multi_types,
-        #     'in_multi_dts': self.in_multi_dts,
-        #     'in_multi_positions': self.in_multi_positions,
-        #     'max_t': self.max_t
-        # }
 
     @property
     def num_series(self):
@@ -188,9 +174,14 @@ class SequenceDataset(data_utils.Dataset):
         return flat_out_times.mean(), flat_out_times.std()
 
     def __getitem__(self, key):
-        return self.in_times[key], self.out_dts[key], self.in_types[key], self.out_types[key], self.seq_lengths[key], \
-            self.in_multi_times[key], self.in_multi_types[key], self.in_multi_positions[
-            key], self.event_type_num, self.device
+        if self.time_pred_type == 'interval':
+            return self.in_times[key], self.out_dts[key], self.in_types[key], self.out_types[key], \
+                self.seq_lengths[key], self.in_multi_times[key], self.in_multi_types[key], \
+                self.in_multi_positions[key], self.event_type_num, self.device
+        elif self.time_pred_type == 'timestamp':
+            return self.in_times[key], self.out_times[key], self.in_types[key], self.out_types[key], \
+                self.seq_lengths[key], self.in_multi_times[key], self.in_multi_types[key], \
+                self.in_multi_positions[key], self.event_type_num, self.device
 
     def __len__(self):
         return self.num_series
