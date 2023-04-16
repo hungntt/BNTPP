@@ -1,10 +1,9 @@
-import torch
-import torch.nn as nn
-from models.embedding import *
-import models
 import math
-from models.lib.gumbel import *
+
+import models
+from models.embedding import *
 from models.graph.relation import *
+from models.lib.gumbel import *
 
 
 class EDTPP(nn.Module):
@@ -15,12 +14,14 @@ class EDTPP(nn.Module):
 
     Args:
         event_type_num: Number of event types 
-        embed_dim: Dimension of the history embedding vector, including event type embedding and time embedding, whose dims are both embed_dim//2
+        embed_dim: Dimension of the history embedding vector, including event type embedding and time embedding,
+            whose dims are both embed_dim//2
         time_embed_type: Which type of time embedding is used, chosen in {"Linear", "Trigono"}
         encoder_type: Which Encoder to use, possible choices {"RNN", "GRU", "LSTM", "Attention", "FNet"}
         layer_num: The layer number in the Encoder
         lag_step: How many history hidden vector are used to compute the history embedding
-        intensity_type: The intensity type for modelling the point process and maximize the log likelihood, chosen in {"Exp","LogNorm","FNN", "NormFlow"},
+        intensity_type: The intensity type for modelling the point process and maximize the log likelihood, chosen in
+            {"Exp","LogNorm","FNN", "NormFlow"},
         prior_graph: The given prior graph of shape (event_type_num, event_type_num).  
                          If the hidden granger graph discovery module is not used, 
                          set prior graph as torch.ones(event_type_num, event_type_num)
@@ -109,7 +110,7 @@ class EDTPP(nn.Module):
             embedding: The embedding of time and event types (batch_size, ..., seq_len, embed_dim)
 
         """
-        type_embedding = self.type_emb(seq_types) * math.sqrt(self.embed_dim // 2)  #
+        type_embedding = self.type_emb(seq_types) * math.sqrt(self.embed_dim // 2)
         time_embedding = self.time_emb(seq_times)
         embedding = torch.cat([time_embedding, type_embedding], dim=-1)
         return embedding
@@ -122,13 +123,14 @@ class EDTPP(nn.Module):
             seq_times: Time interval of events (batch_size, ... ,seq_len)
             seq_types: Sequence of event types (batch_size, ... ,seq_len)
         Returns:
-            embedding: The embedding of time and event types. The first is time, second is event (batch_size, ..., seq_len, embed_dim//2)
+            embedding: The embedding of time and event types. The first is time, second is event
+                        (batch_size, ..., seq_len, embed_dim//2)
         """
         embedding = self._event_embedding(seq_times, seq_types)
         return embedding[..., :self.embed_dim // 2], embedding[self.embed_dim // 2:]
 
-    def kl_categorical_uniform(self, preds, num_edge_types=1, add_const=False,
-                               eps=1e-16):
+    @staticmethod
+    def kl_categorical_uniform(preds, num_edge_types=1, add_const=False, eps=1e-16):
         kl_div = preds * torch.log(preds + eps)
         if add_const:
             const = math.log(num_edge_types)
@@ -196,11 +198,23 @@ class EDTPP(nn.Module):
             return self._intra_encoding(seq_times, seq_types, seq_times_multivariate, seq_types_multivariate,
                                         seq_positions_multivariate)
         else:
-            return self._inter_encoding(seq_times, seq_types, seq_times_multivariate, seq_types_multivariate,
-                                        seq_positions_multivariate)
+            return self._inter_encoding(seq_times, seq_types, seq_positions_multivariate)
 
     def _intra_encoding(self, seq_times, seq_types, seq_times_multivariate, seq_types_multivariate,
                         seq_positions_multivariate):
+        """
+        Calculate the history embedding of the sequence. The history embedding is calculated by the intra-encoding
+        method by employing the multivariate time series.
+        Args:
+            seq_times: the time interval of events (batch_size, ... ,seq_len)
+            seq_types: the sequence of event types (batch_size, ... ,seq_len)
+            seq_times_multivariate: the time interval of multivariate events (batch_size, ... ,seq_len, num_multivariate)
+            seq_types_multivariate: the sequence of multivariate event types (batch_size, ... ,seq_len, num_multivariate)
+            seq_positions_multivariate: the sequence of multivariate event positions (batch_size, ... ,seq_len, num_multivariate)
+
+        Returns:
+            history_embedding: The history embedding of each events, in agreement of order of seq_types (batch_size, ... ,seq_len)
+        """
         assert seq_times_multivariate.shape == seq_types_multivariate.shape
         assert len(seq_times_multivariate.shape) == len(seq_types_multivariate.shape) == 3
 
@@ -218,8 +232,17 @@ class EDTPP(nn.Module):
         self.history_embedding = history_embedding.permute(0, 1, 3, 2)
         return self.history_embedding
 
-    def _inter_encoding(self, seq_times, seq_types, seq_times_multivariate, seq_types_multivariate,
-                        seq_positions_multivariate):
+    def _inter_encoding(self, seq_times, seq_types, seq_positions_multivariate):
+        """
+        Calculate the history embedding of the sequence. The history embedding is calculated by the inter-encoding.
+        Args:
+            seq_times: the time interval of events (batch_size, ... ,seq_len)
+            seq_types: the sequence of event types (batch_size, ... ,seq_len)
+            seq_positions_multivariate: the sequence of multivariate event positions (batch_size, ... ,seq_len, num_multivariate)
+
+        Returns:
+            history_embedding: The history embedding of each events, in agreement of order of seq_types (batch_size, ... ,seq_len)
+        """
         embedding_unitivariate = self._event_embedding(seq_times, seq_types)
         history_embedding = self.encoder(seq_types, embedding_unitivariate, seq_positions_multivariate)
         self.history_embedding = history_embedding.permute(0, 1, 3, 2)
@@ -235,8 +258,8 @@ class EDTPP(nn.Module):
             seq_onehots: Padded sequences of event time interval (batch_size, event_type_num, ... ,seq_len)
 
         Returns:
-            loss
-
+            the sum of the negative log-likelihood loss of the sequence of intervals and
+            the negative log-likelihood loss of the sequence of marks and l1 loss
         """
         history_embedding = self.history_embedding  # remove the final history embedding which is used for prediction
         seq_dts, seq_types, seq_onehots = batch.out_dts, batch.out_types, batch.out_onehots
@@ -263,11 +286,26 @@ class EDTPP(nn.Module):
         return self.forward(batch, *args)
 
     def predict_event_time(self, max_t, resolution=100):
+        """
+        Predict the probability of the next event time.
+        Args:
+            max_t: the upper bound of the time interval
+            resolution: the resolution of the time interval
+
+        Returns:
+            the probability of the next interval (batch_size, resolution).
+            The inter_time_dist_pred will call to the distribution of interval time in each mixture.
+        """
         max_t = max_t.item() if torch.is_tensor(max_t) else max_t
         history_embedding = self.history_embedding
         return self.log_loss.inter_time_dist_pred(history_embedding, max_t, resolution)
 
     def predict_event_type(self):
+        """
+        Predict the probability of the next event type.
+        Returns:
+            the probability of the next event type (batch_size, event_type_num)
+        """
         if hasattr(self.log_loss, 'mark_logits'):
             return self.log_loss.mark_logits
         else:

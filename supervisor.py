@@ -146,7 +146,6 @@ class Supervisor:
                 epoch_train_loss += loss.detach()
 
             lr_scheduler.step()
-
             train_event_num, epoch_train_log_loss, epoch_train_ce_loss, epoch_train_ape, epoch_train_ae, \
                 epoch_train_top1_acc, epoch_train_top3_acc = self._evaluate(dataset='train')
             val_event_num, epoch_val_log_loss, epoch_val_ce_loss, epoch_val_ape, epoch_val_ae, \
@@ -159,6 +158,8 @@ class Supervisor:
             if (epoch_num % log_every) == log_every - 1:
                 message = '---Epoch.{} Train Negative Overall Log-Likelihood per event: {:5f}. ' \
                     .format(epoch_num, epoch_train_loss / train_event_num)
+                message = '---Epoch.{} Train Negative Log-Likelihood per event: {:5f}. ' \
+                    .format(epoch_num, epoch_train_log_loss / train_event_num)
                 self._logger.info(message)
                 self.loss_list_training.append((epoch_train_log_loss / train_event_num).cpu().numpy())
                 self.loss_list_validation.append((epoch_val_log_loss / val_event_num).cpu().numpy())

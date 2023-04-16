@@ -2,6 +2,8 @@
 
 ![img.png](flowchart.png)
 
+The code is based on [1] and [2]. We thank the authors for their great work.
+
 ## List of TPP methods
 
 We first conclude the recent research topics on deep temporal point process as four parts:
@@ -59,7 +61,9 @@ You can train the model with the following commands:
 python main.py --dataset helpdesk
 python main.py --dataset BPI_Challenge_2012
 ```
-*Note: Whenever you want to train a new model, please delete the old checkpoint directory at ``./experiment/{dataset_name}/{dataset_name}_debug``.* 
+
+*Note: Whenever you want to train a new model, please delete the old checkpoint directory
+at ``./experiment/{dataset_name}/{dataset_name}_debug``.*
 
 The ``.yaml`` files consist following kwargs:
 
@@ -111,3 +115,11 @@ gpu: The GPU number to use for training
 
 seed: Random Seed
 ```
+
+## References
+
+[1] E. Rama-Maneiro, J. Vidal, and M. Lama, “Deep Learning for Predictive Business Process Monitoring: Review and
+Benchmark,” IEEE Transactions on Services Computing, pp. 1–1, 2022, doi: https://doi.org/10.1109/tsc.2021.3139807.
+
+[2] H. Lin, C. Tan, L. Wu, Z. Gao, and S. Z. Li, “An Empirical Study: Extensive Deep Temporal Point Process,” arXiv.org,
+2021. https://arxiv.org/abs/2110.09823
