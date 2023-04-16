@@ -17,7 +17,7 @@ torch.set_num_threads(4)
 class Supervisor:
     def __init__(self, **kwargs) -> None:
         self._kwargs = kwargs
-        self._fold = kwargs.get('fold')
+        self._fold = kwargs.get('fold') if kwargs.get('fold') is not None else ''
         self._time_pred_type = kwargs.get('time_pred_type')
         self._data_kwargs = kwargs.get('data')
         self._model_kwargs = kwargs.get('model')

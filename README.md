@@ -1,5 +1,7 @@
 # Review: Temporal Point Process on Predictive Business Process Monitoring
 
+![img.png](flowchart.png)
+
 ## List of TPP methods
 
 We first conclude the recent research topics on deep temporal point process as four parts:
@@ -33,9 +35,7 @@ Structure learning | MLE with SGD | No available codes until now. |
 Requiring packages:
 
 ```
-pytorch=1.8.0=py3.8_cuda11.1_cudnn8.0.5_0
-torchvision=0.9.0=py38_cu111
-torch-scatter==2.0.8
+pip install -r requirements.txt
 ```
 
 ### Dataset
@@ -59,11 +59,15 @@ You can train the model with the following commands:
 python main.py --dataset helpdesk
 python main.py --dataset BPI_Challenge_2012
 ```
+*Note: Whenever you want to train a new model, please delete the old checkpoint directory at ``./experiment/{dataset_name}/{dataset_name}_debug``.* 
 
 The ``.yaml`` files consist following kwargs:
 
 ```
 log_level: INFO
+
+fold: The index of the fold data to use for training/val/test
+time_pred_type: The type of time prediction: `interval` for the inter-event time, `timestamp` for the next timestamp
 
 data:
   batch_size: The batch size for training
