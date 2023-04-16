@@ -145,22 +145,22 @@ class Supervisor:
                 self._logger.debug(loss.item())
                 epoch_train_loss += loss.detach()
 
-            train_event_num = torch.sum(self._seq_lengths['train']).float()
-
             lr_scheduler.step()
+
+            train_event_num, epoch_train_log_loss, epoch_train_ce_loss, epoch_train_ape, epoch_train_ae, \
+                epoch_train_top1_acc, epoch_train_top3_acc = self._evaluate(dataset='train')
             val_event_num, epoch_val_log_loss, epoch_val_ce_loss, epoch_val_ape, epoch_val_ae, \
                 epoch_val_top1_acc, epoch_val_top3_acc = self._evaluate(dataset='val')
             nni.report_intermediate_result((epoch_val_log_loss / val_event_num).item())
 
             test_event_num, epoch_test_log_loss, epoch_test_ce_loss, epoch_test_ape, epoch_test_ae, \
-                epoch_test_top1_acc, epoch_test_top3_acc = self._evaluate(dataset='test', verbose=True)
-            nni.report_intermediate_result((epoch_test_log_loss / test_event_num).item())
+                epoch_test_top1_acc, epoch_test_top3_acc = self._evaluate(dataset='test')
 
             if (epoch_num % log_every) == log_every - 1:
                 message = '---Epoch.{} Train Negative Overall Log-Likelihood per event: {:5f}. ' \
                     .format(epoch_num, epoch_train_loss / train_event_num)
                 self._logger.info(message)
-                self.loss_list_training.append((epoch_train_loss / train_event_num).cpu().numpy())
+                self.loss_list_training.append((epoch_train_log_loss / train_event_num).cpu().numpy())
                 self.loss_list_validation.append((epoch_val_log_loss / val_event_num).cpu().numpy())
                 self.loss_list_test.append((epoch_test_log_loss / test_event_num).cpu().numpy())
 
@@ -365,12 +365,25 @@ class Supervisor:
             return torch.tensor(-1)
 
     def _top_k_acc(self, pred_event_prob, batch_seq_type, batch_one_hot, top=5):
+        """
+        Calculate the top-k accuracy of predicted event type.
+        Args:
+            pred_event_prob: the probability of each event type (mark_logit)
+            batch_seq_type: the ground truth event type
+            batch_one_hot: the ground truth event type in one-hot format
+            top: the top-k accuracy
+
+        Returns:
+            top-k accuracy
+        """
         # pred_event_prob: (batch_size, seq_len, event_num)
         # batch_seq_type: (batch_size, seq_len)
         try:
+            # Sort the probability of each event type in descending order and get the top-k event type
             top_pred = torch.argsort(pred_event_prob, dim=-1, descending=True)[..., :top]
             top_pred = top_pred.unsqueeze(0)
             gt = batch_seq_type.unsqueeze(-1)
+            # Calculate the top-k accuracy
             correct = top_pred.eq(gt.expand_as(top_pred))
             correct_k = correct.view(-1).float().sum(0)
             return correct_k
