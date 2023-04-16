@@ -48,7 +48,7 @@ class EDTPP(nn.Module):
         super().__init__()
         self.event_type_num = event_type_num
         self.embed_dim = embed_dim
-        assert self.embed_dim // 2 != 0, ('embed_dim must be an event number.')
+        assert self.embed_dim // 2 != 0, 'embed_dim must be an event number.'
         self.time_embed_type = time_embed_type + 'TimeEmbedding'
         self.encoder_type = 'GD' + encoder_type
         self.intensity_type = intensity_type
