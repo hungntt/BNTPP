@@ -1,25 +1,27 @@
-from math import e
-import torch
 from numbers import Number
-import math
+
+import torch
 from torch.distributions import Distribution as TorchDistribution
-from models.lib.utils import clamp_preserve_gradients
 from torch.distributions.utils import broadcast_all
 
+from models.lib.utils import clamp_preserve_gradients
+
+
 class ExpDecay(TorchDistribution):
-    '''
+    """
     ExpDecay distribution for TorchDistribution class
     eta, beta, alpha > 0
     whose pdf: f(t) = (eta * exp(-beta * t) + alpha) * exp(-(1 - eta/ beta) * exp(-beta * t) - alpha * t)
           cdf: F(t) = 1 - exp(-(1 - eta/ beta) * exp(-beta * t) - alpha * t)
-          intensity: lamda(t) = eta * exp(-beta * t) + alpha
-          sampling: 
-     '''
+          intensity: lambda(t) = eta * exp(-beta * t) + alpha
+          sampling:
+     """
+
     def __init__(self, eta, beta, alpha, validate_args=False):
-        assert (beta>=0).float().prod() > 0 and (eta>=0).float().prod() > 0 \
-            and (alpha>=0).float().prod() > 0, ('Wrong parameter!')
+        assert (beta >= 0).float().prod() > 0 and (eta >= 0).float().prod() > 0 \
+               and (alpha >= 0).float().prod() > 0, 'Wrong parameter!'
         self.eta, self.beta, self.alpha = broadcast_all(eta, beta, alpha)
-        if isinstance(eta, Number) and isinstance(beta, Number) and isinstance(alpha, Number) :
+        if isinstance(eta, Number) and isinstance(beta, Number) and isinstance(alpha, Number):
             batch_shape = torch.Size()
         else:
             batch_shape = self.eta.size()
@@ -61,14 +63,13 @@ class ExpDecay(TorchDistribution):
         eta, beta, alpha = self._clamp_params()
         int_intensity = self.int_intensity(value)
         return - int_intensity
-    
+
     def log_prob(self, value):
         if self._validate_args:
             self._validate_sample(value)
         intensity = self.intensity(value)
         int_intensity = self.int_intensity(value)
         return intensity.log() - int_intensity
-    
 
     def interval_prob(self, value):
         '''
@@ -78,7 +79,8 @@ class ExpDecay(TorchDistribution):
         eta, beta, alpha = self._clamp_params()
         eta, beta, alpha = eta[..., None, :], beta[..., None, :], alpha[..., None, :]
         a = clamp_preserve_gradients(torch.divide(eta, beta), 0, 1e7)
-        return (eta * torch.exp(-beta * value) + alpha) * torch.exp(((a - 1) * torch.exp(-beta * value) - alpha * value).clamp(max = 50))
+        return (eta * torch.exp(-beta * value) + alpha) * torch.exp(
+            ((a - 1) * torch.exp(-beta * value) - alpha * value).clamp(max=50))
 
     def _clamp_params(self):
         eta = clamp_preserve_gradients(self.eta, 1e-7, 1e7)

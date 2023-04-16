@@ -47,7 +47,7 @@ class EDTPP(nn.Module):
         super().__init__()
         self.event_type_num = event_type_num
         self.embed_dim = embed_dim
-        assert self.embed_dim // 2 != 0, ('embed_dim must be an event number.')
+        assert self.embed_dim // 2 != 0, 'embed_dim must be an event number.'
         self.time_embed_type = time_embed_type + 'TimeEmbedding'
         self.encoder_type = 'GD' + encoder_type
         self.intensity_type = intensity_type
@@ -109,7 +109,7 @@ class EDTPP(nn.Module):
             embedding: The embedding of time and event types (batch_size, ..., seq_len, embed_dim)
 
         """
-        type_embedding = self.type_emb(seq_types) * math.sqrt(self.embed_dim // 2)  #
+        type_embedding = self.type_emb(seq_types) * math.sqrt(self.embed_dim // 2)
         time_embedding = self.time_emb(seq_times)
         embedding = torch.cat([time_embedding, type_embedding], dim=-1)
         return embedding
@@ -122,7 +122,8 @@ class EDTPP(nn.Module):
             seq_times: Time interval of events (batch_size, ... ,seq_len)
             seq_types: Sequence of event types (batch_size, ... ,seq_len)
         Returns:
-            embedding: The embedding of time and event types. The first is time, second is event (batch_size, ..., seq_len, embed_dim//2)
+            embedding: The embedding of time and event types.
+            The first is time, second is event (batch_size, ..., seq_len, embed_dim//2)
         """
         embedding = self._event_embedding(seq_times, seq_types)
         return embedding[..., :self.embed_dim // 2], embedding[self.embed_dim // 2:]
@@ -148,7 +149,7 @@ class EDTPP(nn.Module):
             return torch.tensor(0)
 
     def _convert_prior_graph(self, generate_num):
-        assert self.granger_graph is not None, ('You must give the prior hidden granger graph!')
+        assert self.granger_graph is not None, 'You must give the prior hidden granger graph!'
         edges = self.edges
         edges = nn.ZeroPad2d((0, 1, 0, 1))(edges)
         edges = torch.stack([edges, torch.zeros_like(edges)], dim=-1)
@@ -186,18 +187,20 @@ class EDTPP(nn.Module):
         Args:
             batch
         Returns:
-            history_embedding: The history embedding of each events, in agreement of order of seq_types (batch_size, ... ,seq_len)
+            history_embedding: The history embedding of each event,
+            in agreement of order of seq_types (batch_size, ... ,seq_len)
 
         """
-        seq_times, seq_types, seq_times_multivariate, seq_types_multivariate, seq_positions_multivariate = \
-            batch.in_times, batch.in_types, batch.in_multi_times, batch.in_multi_types, batch.in_multi_positions
+        seq_times, seq_types, seq_times_multivariate, seq_types_multivariate, seq_positions_multivariate, \
+            seq_times_since_midnight, seq_times_since_weekend = \
+            batch.in_times, batch.in_types, batch.in_multi_times, batch.in_multi_types, batch.in_multi_positions, \
+                batch.in_times_midnight, batch.in_times_diff_weekend
 
         if self.is_intra_encoding is True:
             return self._intra_encoding(seq_times, seq_types, seq_times_multivariate, seq_types_multivariate,
                                         seq_positions_multivariate)
         else:
-            return self._inter_encoding(seq_times, seq_types, seq_times_multivariate, seq_types_multivariate,
-                                        seq_positions_multivariate)
+            return self._inter_encoding(seq_times, seq_types, seq_positions_multivariate)
 
     def _intra_encoding(self, seq_times, seq_types, seq_times_multivariate, seq_types_multivariate,
                         seq_positions_multivariate):
@@ -218,10 +221,9 @@ class EDTPP(nn.Module):
         self.history_embedding = history_embedding.permute(0, 1, 3, 2)
         return self.history_embedding
 
-    def _inter_encoding(self, seq_times, seq_types, seq_times_multivariate, seq_types_multivariate,
-                        seq_positions_multivariate):
-        embedding_unitivariate = self._event_embedding(seq_times, seq_types)
-        history_embedding = self.encoder(seq_types, embedding_unitivariate, seq_positions_multivariate)
+    def _inter_encoding(self, seq_times, seq_types, seq_positions_multivariate):
+        embedding_univariate = self._event_embedding(seq_times, seq_types)
+        history_embedding = self.encoder(seq_types, embedding_univariate, seq_positions_multivariate)
         self.history_embedding = history_embedding.permute(0, 1, 3, 2)
         return self.history_embedding
 
@@ -230,9 +232,8 @@ class EDTPP(nn.Module):
         Calculate the history embedding of the sequence.
 
         Args:
-            seq_dts: Time intervals of events (batch_size, ... ,seq_len)
-            seq_types: Types of events in the sequence (batch_size, ... ,seq_len)
-            seq_onehots: Padded sequences of event time interval (batch_size, event_type_num, ... ,seq_len)
+            batch: The batch of data
+            train: Compute the loss on training set or not
 
         Returns:
             loss
@@ -248,7 +249,7 @@ class EDTPP(nn.Module):
             loss_kl = self.kl_categorical_uniform(self.encoder.prob)
         except:
             loss_kl = torch.tensor(0).to(log_loss)
-
+        print('time_log_loss: {}, loss_kl: {}, mark_loss: {}'.format(log_loss, loss_kl, mark_loss))
         if self.l1_lambda is None:
             return log_loss + loss_kl + mark_loss
         else:

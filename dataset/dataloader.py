@@ -1,15 +1,15 @@
-import torch
-from models.lib.utils import one_hot_embedding
-import numpy as np
-from torch.utils.data import Dataset
-import pickle
-import torch.utils.data as data_utils
-from pathlib import Path
 import os
+import pickle
+
+import numpy as np
+import torch
+import torch.utils.data as data_utils
+
+from models.lib.utils import one_hot_embedding
 
 
 def load_dataset(dataset_dir, event_type_num, batch_size, val_batch_size=None, scale_normalization=50.0, device=None,
-                 fold=None,
+                 fold=None, time_pred_type='interval',
                  **kwargs):
     print('loading datasets...')
 
@@ -18,17 +18,17 @@ def load_dataset(dataset_dir, event_type_num, batch_size, val_batch_size=None, s
 
     train_set = SequenceDataset(
             dataset_dir, mode='train', batch_size=batch_size, event_type_num=event_type_num,
-            scale_normalization=scale_normalization, device=device, fold=fold,
+            scale_normalization=scale_normalization, device=device, fold=fold, time_pred_type=time_pred_type,
     )
 
     validation_set = SequenceDataset(
             dataset_dir, mode='val', batch_size=val_batch_size, event_type_num=event_type_num,
-            scale_normalization=scale_normalization, device=device, fold=fold,
+            scale_normalization=scale_normalization, device=device, fold=fold, time_pred_type=time_pred_type,
     )
 
     test_set = SequenceDataset(
             dataset_dir, mode='test', batch_size=val_batch_size, event_type_num=event_type_num,
-            scale_normalization=scale_normalization, device=device, fold=fold,
+            scale_normalization=scale_normalization, device=device, fold=fold, time_pred_type=time_pred_type,
     )
 
     max_t_normalization = train_set.max_t
@@ -68,7 +68,8 @@ class SequenceDataset(data_utils.Dataset):
 
     """
 
-    def __init__(self, dataset_dir, mode, batch_size, event_type_num, device=None, scale_normalization=50.0, fold=None):
+    def __init__(self, dataset_dir, mode, batch_size, event_type_num, device=None, scale_normalization=50.0, fold=None,
+                 time_pred_type='interval'):
         if device is None:
             self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         else:
@@ -78,6 +79,7 @@ class SequenceDataset(data_utils.Dataset):
         self.event_type_num = event_type_num
         self.bs = batch_size
         self.scale_normalization = scale_normalization
+        self.time_pred_type = time_pred_type
 
         if os.path.exists(dataset_dir + '/granger_graph.npy'):
             self.granger_graph = np.load(dataset_dir + '/granger_graph.npy')
@@ -100,8 +102,6 @@ class SequenceDataset(data_utils.Dataset):
                 'in_times_since_midnight'], self.dataset['in_times_diff_weekend']
 
     def process_data(self):
-        # print('processing dataset and saving in {}...'.format(self.processed_path))
-
         self.seq_times, self.seq_types, self.seq_lengths, self.seq_dts, self.event_times_multivariate, \
             self.event_types_multivariate, self.event_intervals_multivariate, self.event_positions_multivariate, \
             self.max_t, self.time_since_midnight, self.time_diff_weekend = \
@@ -132,20 +132,6 @@ class SequenceDataset(data_utils.Dataset):
         # self.in_multi_dts = [[torch.Tensor(t) for t in ts] for ts in self.event_intervals_multivariate]
         self.in_multi_positions = [[torch.Tensor(p) for p in ps] for ps in self.event_positions_multivariate]
 
-        # self.dataset = {
-        #     'in_times': self.in_times,
-        #     'out_times': self.out_times,
-        #     'in_dts': self.in_dts,
-        #     'out_dts': self.out_dts,
-        #     'in_types': self.in_types,
-        #     'out_types': self.out_types,
-        #     'in_multi_times': self.in_multi_times,
-        #     'in_multi_types': self.in_multi_types,
-        #     'in_multi_dts': self.in_multi_dts,
-        #     'in_multi_positions': self.in_multi_positions,
-        #     'max_t': self.max_t
-        # }
-
     @property
     def num_series(self):
         return len(self.in_times)
@@ -155,6 +141,9 @@ class SequenceDataset(data_utils.Dataset):
         return flat_in_times.mean(), flat_in_times.std()
 
     def validate_times(self):
+        """
+        Check that all in/out times have the same length and that marks are not larger than number of classes.
+        """
         if len(self.in_times) != len(self.out_times):
             raise ValueError("in_times and out_times have different lengths.")
 
@@ -165,8 +154,9 @@ class SequenceDataset(data_utils.Dataset):
                 raise ValueError("Marks should not be larger than number of classes.")
 
     def normalize(self, mean_in=None, std_in=None):
-        """Apply mean-std normalization to times."""
-        # average time between events
+        """
+        Apply mean-std normalization to times.
+        """
         if mean_in is None or std_in is None:
             mean_in, std_in = self.get_mean_std_in()
         self.in_times = [(t - mean_in) / std_in for t in self.in_times]
@@ -196,9 +186,16 @@ class SequenceDataset(data_utils.Dataset):
         return flat_out_times.mean(), flat_out_times.std()
 
     def __getitem__(self, key):
-        return self.in_times[key], self.out_dts[key], self.in_types[key], self.out_types[key], self.seq_lengths[key], \
-            self.in_multi_times[key], self.in_multi_types[key], self.in_multi_positions[
-            key], self.event_type_num, self.device, self.in_times_since_midnight[key], self.in_times_diff_weekend[key]
+        if self.time_pred_type == 'interval':
+            return self.in_times[key], self.out_dts[key], self.in_types[key], self.out_types[key], \
+                self.seq_lengths[key], self.in_multi_times[key], self.in_multi_types[key], \
+                self.in_multi_positions[key], self.event_type_num, self.device, self.in_times_since_midnight[key], \
+                self.in_times_diff_weekend[key]
+        elif self.time_pred_type == 'timestamp':
+            return self.in_times[key], self.out_times[key], self.in_types[key], self.out_types[key], \
+                self.seq_lengths[key], self.in_multi_times[key], self.in_multi_types[key], \
+                self.in_multi_positions[key], self.event_type_num, self.device, self.in_times_since_midnight[key], \
+                self.in_times_diff_weekend[key]
 
     def __len__(self):
         return self.num_series

@@ -1,7 +1,6 @@
 import torch
 
 from torch.distributions import Normal as TorchNormal
-
 from models.lib.utils import clamp_preserve_gradients
 
 
@@ -18,6 +17,6 @@ class Normal(TorchNormal):
 
     def log_intensity(self, value):
         return self.log_prob(value) - self.log_survival_function(value)
-    
+
     def int_intensity(self, value):
         return - self.log_survival_function(value)

@@ -1,6 +1,7 @@
 import torch.nn as nn
 import torch
 
+
 class TrigonoTimeEmbedding(nn.Module):
     def __init__(self, embed_dim):
         super().__init__()
@@ -13,11 +14,12 @@ class TrigonoTimeEmbedding(nn.Module):
         pe = torch.cat([pe_sin, pe_cos], dim=-1)
         return pe
 
+
 class LinearTimeEmbedding(nn.Module):
     def __init__(self, embed_dim):
         super().__init__()
         self.Wt = nn.Linear(1, embed_dim, bias=False)
-    
+
     def forward(self, interval):
         emb = self.Wt(interval.unsqueeze(-1))
         return emb

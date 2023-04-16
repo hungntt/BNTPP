@@ -37,15 +37,12 @@ class LogNormalMixtureDistribution(TransformedDistribution):
         mixture_dist = D.Categorical(logits=log_weights)
         component_dist = Normal(loc=locs, scale=log_scales.exp())
         GMM = MixtureSameFamily(mixture_dist, component_dist)
-        transforms = []
-        transforms.append(D.ExpTransform())
+        transforms = [D.ExpTransform()]
         super().__init__(GMM, transforms)
 
     def mean(self, *args) -> torch.Tensor:
         """
         Compute the expected value of the distribution.
-
-        See https://github.com/shchur/ifl-tpp/issues/3#issuecomment-623720667
 
         Returns:
             mean: Expected value, shape (batch_size, seq_len)
@@ -58,13 +55,12 @@ class LogNormalMixtureDistribution(TransformedDistribution):
 
 class LogNormMix(Intensity):
     """
-
     The distribution of the inter-event times given the history is modeled with a LogNormal mixture distribution.
 
     Args:
         embed_dim: Dimension of the embedding vectors
         layer_num: Number of layers for non-linear transformations
-        event_type_num: Number of event type to consturct the number of intensity functions
+        event_type_num: Number of event type to construct the number of intensity functions
         mean_log_inter_time: Average log-inter-event-time
         std_log_inter_time: Std of log-inter-event-times
         num_mix_components: Number of mixture components in the inter-event time distribution.
@@ -118,7 +114,6 @@ class LogNormMix(Intensity):
         inter_time_dist = self.get_inter_time_dist(history_embedding)
         seq_dts = seq_dts.clamp(1e-10)
         seq_dts_expand = seq_dts[:, :, None].expand(batch_size, seq_length, event_num)
-        # remove the final intensity which is the useless padded event type
         log_intensity = inter_time_dist.log_intensity(seq_dts_expand)[:, :, :-1]
         one_hot_mask = seq_onehots
         log_intensity = log_intensity * one_hot_mask
@@ -178,13 +173,13 @@ class LogNormMixSingle(Intensity):
                 log_weights=log_weights
         )
 
-    def forward(self, seq_dts, seq_types, seq_onehots, history_embedding, *args):
+    def forward(self, seq_dts, seq_types, history_embedding, *args):
         history_embedding_single = history_embedding[:, :, 0, :]
         batch_size, seq_length, embed_dim = history_embedding_single.shape
 
         inter_time_dist = self.get_inter_time_dist(history_embedding_single)
         seq_dts = seq_dts.clamp(1e-10)
-        # remove the final intensity which is the useless padded event type
+
         log_intensity = inter_time_dist.log_intensity(seq_dts)
         mask = (seq_types != self.event_type_num)
         int_intensity = inter_time_dist.int_intensity(seq_dts)

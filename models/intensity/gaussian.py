@@ -8,6 +8,7 @@ import torch.distributions as D
 from models.distributions import Normal, MixtureSameFamily, TransformedDistribution
 from models.lib.utils import clamp_preserve_gradients
 
+
 class GaussianMixtureDistribution(TransformedDistribution):
     """
     Mixture of normal distributions.
@@ -26,25 +27,25 @@ class GaussianMixtureDistribution(TransformedDistribution):
         mean_log_inter_time: Average log-inter-event-time
         std_log_inter_time: Std of log-inter-event-times
     """
+
     def __init__(
-        self,
-        locs: torch.Tensor,
-        log_scales: torch.Tensor,
-        log_weights: torch.Tensor
+            self,
+            locs: torch.Tensor,
+            log_scales: torch.Tensor,
+            log_weights: torch.Tensor
     ):
         mixture_dist = D.Categorical(logits=log_weights)
         component_dist = Normal(loc=locs, scale=log_scales.exp())
         GMM = MixtureSameFamily(mixture_dist, component_dist)
         transforms = []
-        
+
         super().__init__(GMM, transforms)
 
     def mean(self, *args) -> torch.Tensor:
-
         loc = self.base_dist._component_distribution.loc
         variance = self.base_dist._component_distribution.variance
         log_weights = self.base_dist._mixture_distribution.logits
-        return (log_weights +  loc).logsumexp(-1).clamp(max=50).exp()
+        return (log_weights + loc).logsumexp(-1).clamp(max=50).exp()
 
 
 class GaussianMix(Intensity):
@@ -62,20 +63,20 @@ class GaussianMix(Intensity):
     """
 
     def __init__(
-        self,
-        embed_dim: int,
-        layer_num: int,
-        event_type_num: int,
-        num_mix_components: int = 16,
-        **kwargs
-        ):
+            self,
+            embed_dim: int,
+            layer_num: int,
+            event_type_num: int,
+            num_mix_components: int = 16,
+            **kwargs
+    ):
         super().__init__(embed_dim, layer_num, event_type_num, **kwargs)
         self.num_mix_components = num_mix_components
-        linear = nn.ModuleList([nn.Linear(self.embed_dim, 3*self.num_mix_components, bias=True)])
+        linear = nn.ModuleList([nn.Linear(self.embed_dim, 3 * self.num_mix_components, bias=True)])
         for i in range(layer_num - 1):
-            linear.append(nn.Linear(3*self.num_mix_components, 3*self.num_mix_components, bias=True))
+            linear.append(nn.Linear(3 * self.num_mix_components, 3 * self.num_mix_components, bias=True))
         self.linear = nn.Sequential(*linear)
-        self.norm = LayerNorm(3*self.num_mix_components)
+        self.norm = LayerNorm(3 * self.num_mix_components)
 
     def get_inter_time_dist(self, history_embedding: torch.Tensor) -> torch.distributions.Distribution:
         """
@@ -98,9 +99,9 @@ class GaussianMix(Intensity):
         log_scales = clamp_preserve_gradients(log_scales, -5.0, 3.0)
         log_weights = torch.log_softmax(log_weights, dim=-1)
         return GaussianMixtureDistribution(
-            locs=locs,
-            log_scales=log_scales,
-            log_weights=log_weights
+                locs=locs,
+                log_scales=log_scales,
+                log_weights=log_weights
         )
 
     def forward(self, seq_dts, seq_types, seq_onehots, history_embedding, *args):
@@ -108,15 +109,15 @@ class GaussianMix(Intensity):
 
         inter_time_dist = self.get_inter_time_dist(history_embedding)
         seq_dts = seq_dts.clamp(1e-10)
-        seq_dts_expand = seq_dts[:,:,None].expand(batch_size, seq_length, event_num)
+        seq_dts_expand = seq_dts[:, :, None].expand(batch_size, seq_length, event_num)
         # remove the final intensity which is the useless padded event type
-        log_intensity = inter_time_dist.log_intensity(seq_dts_expand)[:,:,:-1]
+        log_intensity = inter_time_dist.log_intensity(seq_dts_expand)[:, :, :-1]
         one_hot_mask = seq_onehots
         log_intensity = log_intensity * one_hot_mask
-        int_intensity = inter_time_dist.int_intensity(seq_dts_expand)[:,:,:-1]
+        int_intensity = inter_time_dist.int_intensity(seq_dts_expand)[:, :, :-1]
         log_loss = -log_intensity + int_intensity
         mask = (seq_types != self.event_type_num)
-        log_loss = (log_loss * mask[:,:,None]).sum()
+        log_loss = (log_loss * mask[:, :, None]).sum()
         mark_logits = self.mark_logit(history_embedding, seq_types)
         return log_loss, mark_logits
 
@@ -140,20 +141,20 @@ class GaussianMixSingle(Intensity):
     """
 
     def __init__(
-        self,
-        embed_dim: int,
-        layer_num: int,
-        event_type_num: int,
-        num_mix_components: int = 16,
-        **kwargs
-        ):
+            self,
+            embed_dim: int,
+            layer_num: int,
+            event_type_num: int,
+            num_mix_components: int = 16,
+            **kwargs
+    ):
         super().__init__(embed_dim, layer_num, event_type_num, **kwargs)
         self.num_mix_components = num_mix_components
-        linear = nn.ModuleList([nn.Linear(self.embed_dim, 3*self.num_mix_components, bias=True)])
+        linear = nn.ModuleList([nn.Linear(self.embed_dim, 3 * self.num_mix_components, bias=True)])
         for i in range(layer_num - 1):
-            linear.append(nn.Linear(3*self.num_mix_components, 3*self.num_mix_components, bias=True))
+            linear.append(nn.Linear(3 * self.num_mix_components, 3 * self.num_mix_components, bias=True))
         self.linear = nn.Sequential(*linear)
-        self.norm = LayerNorm(3*self.num_mix_components)
+        self.norm = LayerNorm(3 * self.num_mix_components)
 
     def get_inter_time_dist(self, history_embedding: torch.Tensor) -> torch.distributions.Distribution:
         """
@@ -176,13 +177,13 @@ class GaussianMixSingle(Intensity):
         log_scales = clamp_preserve_gradients(log_scales, -5.0, 3.0)
         log_weights = torch.log_softmax(log_weights, dim=-1)
         return GaussianMixtureDistribution(
-            locs=locs,
-            log_scales=log_scales,
-            log_weights=log_weights
+                locs=locs,
+                log_scales=log_scales,
+                log_weights=log_weights
         )
 
     def forward(self, seq_dts, seq_types, seq_onehots, history_embedding, *args):
-        history_embedding_single = history_embedding[:,:,0,:]
+        history_embedding_single = history_embedding[:, :, 0, :]
         batch_size, seq_length, embed_dim = history_embedding_single.shape
 
         inter_time_dist = self.get_inter_time_dist(history_embedding_single)
@@ -197,6 +198,6 @@ class GaussianMixSingle(Intensity):
         return log_loss, mark_logits
 
     def inter_time_dist_pred(self, history_embedding, *args):
-        history_embedding_single = history_embedding[:,:,0,:]
+        history_embedding_single = history_embedding[:, :, 0, :]
         inter_time_dist = self.get_inter_time_dist(history_embedding_single)
         return inter_time_dist.mean()

@@ -3,8 +3,15 @@ import time
 
 import pandas as pd
 import torch
+import argparse
 
-data_name = 'BPI_Challenge_2012'
+parser = argparse.ArgumentParser()
+parser.add_argument('--dataset', default='helpdesk', type=str,
+                    help='Dataset name. Options: helpdesk, BPI_Challenge_2012')
+
+args = parser.parse_args()
+data_name = args.dataset
+
 helpdesk = pd.read_csv(f'data/{data_name}/{data_name}.csv')
 for fold in range(5):
     train = pd.read_csv(f'data/{data_name}/train_fold{fold}_variation0_{data_name}.csv')

@@ -18,15 +18,14 @@ class Intensity(nn.Module):
         self.event_type_num = event_type_num
         self.intra_encoding = intra_encoding
 
-        if self.intra_encoding == False:
+        if not self.intra_encoding:
             self.mark_linear = nn.Linear(self.embed_dim, self.event_type_num + 1)
         else:
             self.mark_linear = nn.Linear(self.embed_dim, 1)
 
     def mark_logit(self, history_embedding, seq_types):
         history_embedding = history_embedding[:, :, 0, ...] if self.intra_encoding is False else history_embedding
-        self.mark_logits = torch.log_softmax(self.mark_linear(history_embedding).squeeze(),
-                                             dim=-1)  # (batch_size, seq_len, num_marks)
+        self.mark_logits = torch.log_softmax(self.mark_linear(history_embedding).squeeze(), dim=-1)
         mark_dist = Categorical(logits=self.mark_logits)
         mask = ~(seq_types == self.event_type_num)
         mark_dist = -(mark_dist.log_prob(seq_types) * mask).sum()

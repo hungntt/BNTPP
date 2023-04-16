@@ -6,20 +6,20 @@ from torch.distributions import Distribution as TorchDistribution
 from models.lib.utils import clamp_preserve_gradients
 from torch.distributions.utils import broadcast_all
 
+
 class Gompertz(TorchDistribution):
-    '''
+    """
     Gompertz distribution for TorchDistribution class
     whose pdf: f(t) = beta * eta * exp(eta + beta * t - eta * exp(beta * t))
           cdf: F(t) = 1 - exp(- eta * (exp(beta * t) - 1))
           intensity: lamda(t) = eta * beta * exp(beta * t)
-          sampling: u ~ U[0,1]  
-                    ln(u) ~ exp(1) 
+          sampling: u ~ U[0,1]
+                    ln(u) ~ exp(1)
                     1/beta * ln(1 - 1 / eta * ln(u) ) ~ Gompt(eta, beta)
-     '''
-    
+     """
+
     def __init__(self, eta, beta, validate_args=False):
-        assert (beta>=0).float().prod() > 0 and (eta>=0).float().prod() > 0, \
-            ('Wrong parameter!')
+        assert (beta >= 0).float().prod() > 0 and (eta >= 0).float().prod() > 0, 'Wrong parameter!'
         self.eta, self.beta = broadcast_all(eta, beta)
         if isinstance(eta, Number) and isinstance(beta, Number):
             batch_shape = torch.Size()
@@ -50,7 +50,7 @@ class Gompertz(TorchDistribution):
         eta, beta = self._clamp_params()
         b = clamp_preserve_gradients(beta * value, 0, 5e1)
         return - eta * (torch.exp(b) - 1.0)
-    
+
     def log_prob(self, value):
         if self._validate_args:
             self._validate_sample(value)
@@ -59,7 +59,7 @@ class Gompertz(TorchDistribution):
         log_beta = math.log(beta) if isinstance(beta, Number) else beta.log()
         b = clamp_preserve_gradients(beta * value, 0, 5e1)
         return log_eta + log_beta + eta + b - eta * b.exp()
-    
+
     def log_intensity(self, value):
         '''
         log of the intensity function
@@ -72,7 +72,7 @@ class Gompertz(TorchDistribution):
         log_beta = math.log(beta) if isinstance(beta, Number) else beta.log()
 
         return log_eta + log_beta + b
-    
+
     def int_intensity(self, value):
         '''
         Integral of the intensity function

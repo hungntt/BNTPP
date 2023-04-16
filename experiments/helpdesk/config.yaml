@@ -1,11 +1,12 @@
 log_level: INFO
 
 fold: 0
+time_pred_type: interval # interval, timestamp, remaining
 
 data:
   batch_size: 128
   dataset_dir: data/helpdesk/
-  val_batch_size: 1
+  val_batch_size: 16
   event_type_num: 16
 
 model:
@@ -26,7 +27,7 @@ model:
 train:
   epochs: 3
   lr: 5.0e-3
-  log_dir: experiments/BPI_Challenge_2012/
+  log_dir: experiments/Helpdesk/
   lr_decay_ratio: 0.5
   max_grad_norm: 5
   min_learning_rate: 1.0e-06
@@ -38,7 +39,7 @@ train:
   - 70
   - 80
   test_every_n_epochs: 10
-  experiment_name: 'BPI_Challenge_2012_debug'
+  experiment_name: 'helpdesk_debug'
   delayed_grad_epoch: 10
   relation_inference: True
 gpu: 0

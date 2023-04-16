@@ -18,6 +18,7 @@ class Supervisor:
     def __init__(self, **kwargs) -> None:
         self._kwargs = kwargs
         self._fold = kwargs.get('fold')
+        self._time_pred_type = kwargs.get('time_pred_type')
         self._data_kwargs = kwargs.get('data')
         self._model_kwargs = kwargs.get('model')
         self._train_kwargs = kwargs.get('train')
@@ -28,9 +29,12 @@ class Supervisor:
         # self._device = torch.device("cuda" if torch.cuda.is_available() else "cpu") 
         log_level = self._kwargs.get('log_level', 'INFO')
         self._logger = get_logger(self._log_dir, __name__, 'info.log', level=log_level)
-        self.loss_list = []
+        self.loss_list_training = []
+        self.loss_list_validation = []
+        self.loss_list_test = []
         self._data, self._seq_lengths, self._max_t, self._granger_graph = load_dataset(device=self._device,
                                                                                        fold=self._fold,
+                                                                                       time_pred_type=self._time_pred_type,
                                                                                        **self._data_kwargs)
         self._event_type_num = self._data_kwargs['event_type_num']
 
@@ -148,12 +152,17 @@ class Supervisor:
                 epoch_val_top1_acc, epoch_val_top3_acc = self._evaluate(dataset='val')
             nni.report_intermediate_result((epoch_val_log_loss / val_event_num).item())
 
+            test_event_num, epoch_test_log_loss, epoch_test_ce_loss, epoch_test_ape, epoch_test_ae, \
+                epoch_test_top1_acc, epoch_test_top3_acc = self._evaluate(dataset='test', verbose=True)
+            nni.report_intermediate_result((epoch_test_log_loss / test_event_num).item())
+
             if (epoch_num % log_every) == log_every - 1:
                 message = '---Epoch.{} Train Negative Overall Log-Likelihood per event: {:5f}. ' \
                     .format(epoch_num, epoch_train_loss / train_event_num)
                 self._logger.info(message)
-                self.loss_list.append((epoch_train_loss / train_event_num).cpu().numpy())
-
+                self.loss_list_training.append((epoch_train_loss / train_event_num).cpu().numpy())
+                self.loss_list_validation.append((epoch_val_log_loss / val_event_num).cpu().numpy())
+                self.loss_list_test.append((epoch_test_log_loss / test_event_num).cpu().numpy())
 
                 message = '---Epoch.{} Val Negative Log-Likelihood per event: {:5f}; Cross-Entropy per event: {:5f}; ' \
                           'MAPE: {:5f}; MAE: {:5f}; Acc_Top1: {:5f}, Acc_Top3: {:5f}   ' \
@@ -169,9 +178,7 @@ class Supervisor:
                 self._logger.info(message)
 
             if (epoch_num % test_every_n_epochs) == test_every_n_epochs - 1:
-                test_event_num, epoch_test_log_loss, epoch_test_ce_loss, epoch_test_ape, epoch_test_ae, \
-                    epoch_test_top1_acc, epoch_test_top3_acc = self._evaluate(dataset='test', verbose=True)
-                message = '---Epoch.{} Val Negative Log-Likelihood per event: {:5f}; Cross-Entropy per event: {:5f}; ' \
+                message = '---Epoch.{} Test Negative Log-Likelihood per event: {:5f}; Cross-Entropy per event: {:5f}; ' \
                           'MAPE: {:5f}; MAE: {:5f}; Acc_Top1: {:5f}, Acc_Top3: {:5f}   ' \
                     .format(
                         epoch_num,
@@ -262,6 +269,10 @@ class Supervisor:
         return event_num, epoch_log_loss, epoch_ce_loss, epoch_ape, epoch_ae, epoch_top1_acc, epoch_top3_acc
 
     def _test_final_n_epoch(self, n=5):
+        """
+        Test the final n epoch model.
+        The metrics include negative log-likelihood, cross-entropy, MAPE, MAE, top1 accuracy, top3 accuracy.
+        """
         model_path = Path(self._log_dir) / 'saved_model'
         model_list = os.listdir(model_path)
         import re
@@ -296,7 +307,16 @@ class Supervisor:
         nni.report_final_result(test_loss.item())
 
     def _ape_pred_time(self, pred_time, batch_seq_dt, batch_one_hot):
-        # relative absolute error
+        """
+        Calculate the MAPE of predicted event time.
+        Args:
+            pred_time: the predicted event time from TPP model
+            batch_seq_dt: the ground truth event time
+            batch_one_hot: the ground truth event type
+
+        Returns:
+            MAPE of predicted event time
+        """
         # batch_seq_dt = batch_seq_dt.clamp(min=1e-7)
         try:
             if len(pred_time.shape) == 3:
@@ -326,23 +346,33 @@ class Supervisor:
         except:
             return torch.tensor(-1)
 
+    def _ae_remaining_time(self, pred_time, batch_seq_dt, batch_one_hot):
+        # absolute error
+        try:
+            if len(pred_time.shape) == 3:
+                # convert batch_seq_dt as interval time to remaining time
+                for i in range(batch_seq_dt.shape[0]):
+                    for j in range(batch_seq_dt.shape[1]):
+                        batch_seq_dt[i, j] = batch_seq_dt[i, j] - torch.sum(batch_seq_dt[i, :j])
+                pred_time = pred_time[:, :, :-1]
+                per_event = (pred_time.clamp(max=self._max_t) - batch_seq_dt[:, :, None]).abs()
+                mask_event = (per_event * batch_one_hot).clamp(max=100.0)
+            elif len(pred_time.shape) == 2:
+                per_event = (pred_time.clamp(max=self._max_t) - batch_seq_dt).abs()
+                mask_event = (per_event * batch_one_hot.sum(dim=-1).bool()).clamp(max=100.0)
+            return mask_event.sum()
+        except:
+            return torch.tensor(-1)
+
     def _top_k_acc(self, pred_event_prob, batch_seq_type, batch_one_hot, top=5):
         # pred_event_prob: (batch_size, seq_len, event_num)
         # batch_seq_type: (batch_size, seq_len)
         try:
             top_pred = torch.argsort(pred_event_prob, dim=-1, descending=True)[..., :top]
-            # Add one more dimension to top_pred (from [4,1] to [1,4,1])
             top_pred = top_pred.unsqueeze(0)
-            # print('Model pred: ', top_pred)
             gt = batch_seq_type.unsqueeze(-1)
-            # print('Ground truth: ', gt)
             correct = top_pred.eq(gt.expand_as(top_pred))
             correct_k = correct.view(-1).float().sum(0)
-            # if top == 1:
-            #     print('Top pred: ', top_pred)
-            #     print('Ground truth: ', gt)
-            #     print('Correct: ', correct)
-            #     print('Correct_k: ', correct_k)
             return correct_k
         except:
             return torch.tensor(-1)
