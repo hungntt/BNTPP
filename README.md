@@ -6,11 +6,11 @@ The code is based on [1] and [2]. We thank the authors for their great work.
 
 ## List of TPP methods
 
-We first conclude the recent research topics on deep temporal point process as four parts:
+We first conclude the recent research topics on deep TPPs as two main components:
 
-``· Encoding of history sequence``
+- Encoding of history sequence
 
-``· Formulation of conditional intensity function``
+- Formulation of conditional intensity function
 
 **TPP methods:**
 | Methods | History Encoder | Intensity Function | Relational Discovery | Learning Approaches | Released codes |
