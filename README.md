@@ -42,15 +42,21 @@ pip install -r requirements.txt
 
 ### Dataset
 
-#### Converting from raw data to .pkl format
-
-We evaluate on two real-world datasets: Helpdesk and BPI 2012. These datasets are generated and split by Rama et al. [1]
+#### Converting from raw data to .pkl dataset
+We evaluate on two real-world datasets: ``helpdesk`` and ``bpi_challenge_2012``. These datasets are generated and split by Rama et al. [1]
 and located in ``./data/``. The data format is as follows:
 ``./data/{dataset_name}/``
 The code for converting is also available in ``./scripts/``. For example:
 
 ```bash
 python ./scripts/tax_dataloader.py --dataset BPI_Challenge_2012
+```
+
+#### Preprocessing the .pkl dataset
+We preprocess the raw data to make it suitable for training TPP models. The preprocessing code is also available in ``./scripts/``. For example:
+
+```bash
+python ./scripts/generate_helpdesk_data.py
 ```
 
 ### Training
