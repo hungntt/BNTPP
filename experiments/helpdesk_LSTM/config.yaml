@@ -11,7 +11,7 @@ data:
 
 model:
   encoder_type: LSTM #FNet, RNN, LSTM, GRU, Attention
-  intensity_type: LogNormMix # LogNormMix, GomptMix, LogCauMix, ExpDecayMix, WeibMix, GaussianMix,
+  intensity_type: GomptMix # LogNormMix, GomptMix, LogCauMix, ExpDecayMix, WeibMix, GaussianMix,
                                   # LogNormMixSingle, GomptMixSingle, LogCauMixSingle, ExpDecayMixSingle, WeibMixSingle, GaussianMixSingle, FNNIntegralSingle
   time_embed_type: Linear #Linear, Trigono
   embed_dim: 32
@@ -20,7 +20,7 @@ model:
   layer_num: 1 # the layers number in the encoder
   dropout: 0.1
   gumbel_tau: 0.8
-  l1_lambda: 0.1
+  l1_lambda: 0
   use_prior_graph: False # only used when the ganger graph is given
   intra_encoding: False
 
