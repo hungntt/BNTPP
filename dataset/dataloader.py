@@ -154,13 +154,14 @@ class SequenceDataset(data_utils.Dataset):
         """Apply mean-std normalization to times."""
         if mean_in is None or std_in is None:
             mean_in, std_in = self.get_mean_std_in()
-        self.in_times = [(t - mean_in) / std_in for t in self.in_times]
-        self.in_dts = [(t - mean_in) / std_in for t in self.in_dts]
-        # self.in_multi_dts = [[(t - mean_in) / std_in for t in ts] for ts in self.in_multi_dts]
+        self.in_times = [t / mean_in for t in self.in_times]
+        self.in_dts = [t / mean_in_dts for t in self.in_dts]
+        self.out_times = [t / mean_in for t in self.out_times]
+        self.out_dts = [t / mean_in_dts for t in self.out_dts]
 
-        if self.scale_normalization != 0:
-            self.out_times = [t / self.max_t_normalization * self.scale_normalization for t in self.out_times]
-            self.out_dts = [t / self.max_t_normalization * self.scale_normalization for t in self.out_dts]
+        # if self.scale_normalization != 0:
+        #     self.out_times = [t / self.max_t_normalization * self.scale_normalization for t in self.out_times]
+        #     self.out_dts = [t / self.max_t_normalization * self.scale_normalization for t in self.out_dts]
 
         return self
 

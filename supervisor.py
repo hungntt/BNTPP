@@ -333,28 +333,13 @@ class Supervisor:
                 pred_time = pred_time[:, :, :-1]
                 gt = batch_seq_dt[:, :, None]
                 per_event = (pred_time.clamp(max=self._max_t) - gt).abs()
+                per_event = per_event * self._mean_dts_train
                 mask_event = (per_event * batch_one_hot)
             elif len(pred_time.shape) == 2:
                 per_event = (pred_time.clamp(max=self._max_t) - batch_seq_dt).abs()
+                per_event = per_event * self._mean_dts_train
                 mask_event = (per_event * batch_one_hot.sum(dim=-1).bool())
-            return mask_event.sum() * self._std_in_train + self._mean_in_train
-        except:
-            return torch.tensor(-1)
 
-    def _ae_remaining_time(self, pred_time, batch_seq_dt, batch_one_hot):
-        # absolute error
-        try:
-            if len(pred_time.shape) == 3:
-                # convert batch_seq_dt as interval time to remaining time
-                for i in range(batch_seq_dt.shape[0]):
-                    for j in range(batch_seq_dt.shape[1]):
-                        batch_seq_dt[i, j] = batch_seq_dt[i, j] - torch.sum(batch_seq_dt[i, :j])
-                pred_time = pred_time[:, :, :-1]
-                per_event = (pred_time.clamp(max=self._max_t) - batch_seq_dt[:, :, None]).abs()
-                mask_event = (per_event * batch_one_hot).clamp(max=100.0)
-            elif len(pred_time.shape) == 2:
-                per_event = (pred_time.clamp(max=self._max_t) - batch_seq_dt).abs()
-                mask_event = (per_event * batch_one_hot.sum(dim=-1).bool()).clamp(max=100.0)
             return mask_event.sum()
         except:
             return torch.tensor(-1)
