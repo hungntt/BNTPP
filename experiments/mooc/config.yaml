@@ -3,7 +3,7 @@ log_level: INFO
 data:
   batch_size: 12
   dataset_dir: data/mooc/
-  val_batch_size: 16
+  val_batch_size: 0
   event_type_num: 97
 
 model:

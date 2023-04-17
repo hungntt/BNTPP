@@ -1,7 +1,7 @@
 log_level: INFO
 
 fold: 0
-time_pred_type: timestamp
+
 
 data:
   batch_size: 128
@@ -12,7 +12,7 @@ data:
 model:
   encoder_type: RNN #FNet, RNN, LSTM, GRU, Attention
   intensity_type: LogNormMix # LogNormMix, GomptMix, LogCauMix, ExpDecayMix, WeibMix, GaussianMix,
-                                  # LogNormMixSingle, GomptMixSingle, LogCauMixSingle, ExpDecayMixSingle, WeibMixSingle, GaussianMixSingle, FNNIntegralSingle
+  # LogNormMixSingle, GomptMixSingle, LogCauMixSingle, ExpDecayMixSingle, WeibMixSingle, GaussianMixSingle, FNNIntegralSingle
   time_embed_type: Linear #Linear, Trigono
   embed_dim: 32
   lag_step: 32
@@ -34,10 +34,10 @@ train:
   optimizer: adam
   patience: 30
   steps:
-  - 50
-  - 60
-  - 70
-  - 80
+    - 50
+    - 60
+    - 70
+    - 80
   test_every_n_epochs: 10
   experiment_name: 'helpdesk_debug'
   delayed_grad_epoch: 10

@@ -1,15 +1,16 @@
-import torch
-from models.lib.utils import one_hot_embedding
-import numpy as np
-from torch.utils.data import Dataset
-import pickle
-import torch.utils.data as data_utils
-from pathlib import Path
 import os
+import pickle
+
+import numpy as np
+import torch
+import torch.utils.data as data_utils
+from torch.utils.data import Dataset
+
+from models.lib.utils import one_hot_embedding
 
 
 def load_dataset(dataset_dir, event_type_num, batch_size, val_batch_size=None, scale_normalization=50.0, device=None,
-                 fold='', time_pred_type='interval', **kwargs):
+                 fold='', **kwargs):
     print('loading datasets...')
 
     if val_batch_size is None:
@@ -17,17 +18,17 @@ def load_dataset(dataset_dir, event_type_num, batch_size, val_batch_size=None, s
 
     train_set = SequenceDataset(
             dataset_dir, mode='train', batch_size=batch_size, event_type_num=event_type_num,
-            scale_normalization=scale_normalization, device=device, fold=fold, time_pred_type=time_pred_type,
+            scale_normalization=scale_normalization, device=device, fold=fold,
     )
 
     validation_set = SequenceDataset(
             dataset_dir, mode='val', batch_size=val_batch_size, event_type_num=event_type_num,
-            scale_normalization=scale_normalization, device=device, fold=fold, time_pred_type=time_pred_type,
+            scale_normalization=scale_normalization, device=device, fold=fold,
     )
 
     test_set = SequenceDataset(
             dataset_dir, mode='test', batch_size=val_batch_size, event_type_num=event_type_num,
-            scale_normalization=scale_normalization, device=device, fold=fold, time_pred_type=time_pred_type,
+            scale_normalization=scale_normalization, device=device, fold=fold,
     )
 
     max_t_normalization = train_set.max_t
@@ -35,17 +36,17 @@ def load_dataset(dataset_dir, event_type_num, batch_size, val_batch_size=None, s
         setattr(dataset, 'max_t_normalization', max_t_normalization)
 
     mean_in_train, std_in_train = train_set.get_time_statistics()
-    train_set.normalize(mean_in_train, std_in_train)
-    validation_set.normalize(mean_in_train, std_in_train)
-    test_set.normalize(mean_in_train, std_in_train)
+    mean_in_dts_train, std_in_dts_train = train_set.get_inter_time_statistics()
+    train_set.normalize(mean_in_train, std_in_train, mean_in_dts_train)
+    validation_set.normalize(mean_in_train, std_in_train, mean_in_dts_train)
+    test_set.normalize(mean_in_train, std_in_train, mean_in_dts_train)
 
-    data = {}
-    data['train_loader'] = torch.utils.data.DataLoader(train_set, batch_size=batch_size, shuffle=True,
-                                                       collate_fn=collate)
-    data['val_loader'] = torch.utils.data.DataLoader(validation_set, batch_size=val_batch_size, shuffle=False,
-                                                     collate_fn=collate)
-    data['test_loader'] = torch.utils.data.DataLoader(test_set, batch_size=val_batch_size, shuffle=False,
-                                                      collate_fn=collate)
+    data = {'train_loader': torch.utils.data.DataLoader(train_set, batch_size=batch_size, shuffle=True,
+                                                        collate_fn=collate),
+            'val_loader': torch.utils.data.DataLoader(validation_set, batch_size=val_batch_size, shuffle=False,
+                                                      collate_fn=collate),
+            'test_loader': torch.utils.data.DataLoader(test_set, batch_size=val_batch_size, shuffle=False,
+                                                       collate_fn=collate)}
 
     max_t = max([train_set.max_t, validation_set.max_t, test_set.max_t]) / max_t_normalization * scale_normalization \
         if scale_normalization != 0 else max([train_set.max_t, validation_set.max_t, test_set.max_t])
@@ -55,8 +56,10 @@ def load_dataset(dataset_dir, event_type_num, batch_size, val_batch_size=None, s
     else:
         granger_graph = None
 
-    return data, {'train': train_set.seq_lengths, 'val': validation_set.seq_lengths,
-                  'test': test_set.seq_lengths}, max_t, granger_graph
+    return data, \
+        {'train': train_set.seq_lengths, 'val': validation_set.seq_lengths,
+         'test': test_set.seq_lengths}, \
+        max_t, granger_graph, mean_in_dts_train
 
 
 class SequenceDataset(data_utils.Dataset):
@@ -68,7 +71,7 @@ class SequenceDataset(data_utils.Dataset):
     """
 
     def __init__(self, dataset_dir, mode, batch_size, event_type_num, device=None, scale_normalization=50.0, fold='',
-                 time_pred_type='interval', **kwargs):
+                 **kwargs):
         if device is None:
             self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         else:
@@ -78,7 +81,6 @@ class SequenceDataset(data_utils.Dataset):
         self.event_type_num = event_type_num
         self.bs = batch_size
         self.scale_normalization = scale_normalization
-        self.time_pred_type = time_pred_type
         if os.path.exists(dataset_dir + '/granger_graph.npy'):
             self.granger_graph = np.load(dataset_dir + '/granger_graph.npy')
 
@@ -134,6 +136,10 @@ class SequenceDataset(data_utils.Dataset):
         flat_in_times = torch.cat(self.in_times)
         return flat_in_times.mean(), flat_in_times.std()
 
+    def get_inter_time_statistics(self):
+        flat_in_dts = torch.cat(self.in_dts)
+        return flat_in_dts.mean(), flat_in_dts.std()
+
     def validate_times(self):
         if len(self.in_times) != len(self.out_times):
             raise ValueError("in_times and out_times have different lengths.")
@@ -144,17 +150,17 @@ class SequenceDataset(data_utils.Dataset):
             if s3.max() >= self.event_type_num or s4.max() >= self.event_type_num:
                 raise ValueError("Marks should not be larger than number of classes.")
 
-    def normalize(self, mean_in=None, std_in=None):
+    def normalize(self, mean_in=None, std_in=None, mean_in_dts=None):
         """Apply mean-std normalization to times."""
         if mean_in is None or std_in is None:
             mean_in, std_in = self.get_mean_std_in()
         self.in_times = [(t - mean_in) / std_in for t in self.in_times]
-        self.in_dts = [(t - mean_in) / std_in for t in self.in_dts]
+        self.in_dts = [(t / mean_in_dts) for t in self.in_dts]
         # self.in_multi_dts = [[(t - mean_in) / std_in for t in ts] for ts in self.in_multi_dts]
+        self.out_dts = [(t / mean_in_dts) for t in self.out_dts]
 
         if self.scale_normalization != 0:
             self.out_times = [t / self.max_t_normalization * self.scale_normalization for t in self.out_times]
-            self.out_dts = [t / self.max_t_normalization * self.scale_normalization for t in self.out_dts]
 
         return self
 
@@ -174,14 +180,9 @@ class SequenceDataset(data_utils.Dataset):
         return flat_out_times.mean(), flat_out_times.std()
 
     def __getitem__(self, key):
-        if self.time_pred_type == 'interval':
-            return self.in_times[key], self.out_dts[key], self.in_types[key], self.out_types[key], \
-                self.seq_lengths[key], self.in_multi_times[key], self.in_multi_types[key], \
-                self.in_multi_positions[key], self.event_type_num, self.device
-        elif self.time_pred_type == 'timestamp':
-            return self.in_times[key], self.out_times[key], self.in_types[key], self.out_types[key], \
-                self.seq_lengths[key], self.in_multi_times[key], self.in_multi_types[key], \
-                self.in_multi_positions[key], self.event_type_num, self.device
+        return self.in_times[key], self.out_dts[key], self.in_types[key], self.out_types[key], \
+            self.seq_lengths[key], self.in_multi_times[key], self.in_multi_types[key], \
+            self.in_multi_positions[key], self.event_type_num, self.device
 
     def __len__(self):
         return self.num_series

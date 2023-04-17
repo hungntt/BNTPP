@@ -1,7 +1,6 @@
 log_level: INFO
 
 fold: 0
-time_pred_type: timestamp
 
 data:
   batch_size: 128

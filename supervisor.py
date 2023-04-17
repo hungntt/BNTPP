@@ -18,11 +18,9 @@ class Supervisor:
     def __init__(self, **kwargs) -> None:
         self._kwargs = kwargs
         self._fold = kwargs.get('fold') if kwargs.get('fold') is not None else ''
-        self._time_pred_type = kwargs.get('time_pred_type')
         self._data_kwargs = kwargs.get('data')
         self._model_kwargs = kwargs.get('model')
         self._train_kwargs = kwargs.get('train')
-        self._time_pred_type = kwargs.get('time_pred_type')
         self._experiment_name = self._train_kwargs['experiment_name']
         self._log_dir = self._get_log_dir(self, kwargs)
         self._device = torch.device("cuda:{}".format(kwargs.get('gpu')) if torch.cuda.is_available() else "cpu")
@@ -32,10 +30,11 @@ class Supervisor:
         self.loss_list_training = []
         self.loss_list_validation = []
         self.loss_list_test = []
-        self._data, self._seq_lengths, self._max_t, self._granger_graph = load_dataset(device=self._device,
-                                                                                       fold=self._fold,
-                                                                                       time_pred_type=self._time_pred_type,
-                                                                                       **self._data_kwargs)
+        self._data, self._seq_lengths, self._max_t, self._granger_graph, self._mean_dts_train = \
+            load_dataset(
+                    device=self._device,
+                    fold=self._fold,
+                    **self._data_kwargs)
         self._event_type_num = self._data_kwargs['event_type_num']
 
         if not self._train_kwargs['relation_inference']:
@@ -171,8 +170,8 @@ class Supervisor:
                         epoch_num,
                         epoch_val_log_loss / val_event_num,
                         epoch_val_ce_loss / val_event_num,
-                        epoch_val_ape / val_event_num,
-                        epoch_val_ae / val_event_num,
+                        epoch_val_ape / val_event_num * self._mean_dts_train / 86400,
+                        epoch_val_ae / val_event_num * self._mean_dts_train / 86400,
                         epoch_val_top1_acc / val_event_num,
                         epoch_val_top3_acc / val_event_num
                 )
@@ -185,8 +184,8 @@ class Supervisor:
                         epoch_num,
                         epoch_test_log_loss / test_event_num,
                         epoch_test_ce_loss / test_event_num,
-                        epoch_test_ape / test_event_num,
-                        epoch_test_ae / test_event_num,
+                        epoch_test_ape / test_event_num * self._mean_dts_train / 86400,
+                        epoch_test_ae / test_event_num * self._mean_dts_train / 86400,
                         epoch_test_top1_acc / test_event_num,
                         epoch_test_top3_acc / test_event_num
                 )
@@ -296,8 +295,8 @@ class Supervisor:
                     epoch_num,
                     test_epoch_log_loss / test_event_num,
                     test_epoch_ce_loss / test_event_num,
-                    test_epoch_ape / test_event_num,
-                    test_epoch_ae / test_event_num,
+                    test_epoch_ape / test_event_num * self._mean_dts_train / 86400,
+                    test_epoch_ae / test_event_num * self._mean_dts_train / 86400,
                     test_epoch_top1_acc / test_event_num,
                     test_epoch_top3_acc / test_event_num
             )

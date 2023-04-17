@@ -1,18 +1,17 @@
 log_level: INFO
 
 fold: 0
-time_pred_type: timestamp # interval, timestamp, remaining
 
 data:
-  batch_size: 128
+  batch_size: 64
   dataset_dir: data/helpdesk/
-  val_batch_size: 16
+  val_batch_size: 0
   event_type_num: 16
 
 model:
   encoder_type: GRU #FNet, RNN, LSTM, GRU, Attention
-  intensity_type: LogNormMix # LogNormMix, GomptMix, LogCauMix, ExpDecayMix, WeibMix, GaussianMix,
-                                  # LogNormMixSingle, GomptMixSingle, LogCauMixSingle, ExpDecayMixSingle, WeibMixSingle, GaussianMixSingle, FNNIntegralSingle
+  intensity_type: LogNormMix #LogNormMix, GomptMix, LogCauMix, ExpDecayMix, WeibMix, GaussianMix,
+                              #LogNormMixSingle, GomptMixSingle, LogCauMixSingle, ExpDecayMixSingle, WeibMixSingle, GaussianMixSingle, FNNIntegralSingle
   time_embed_type: Linear #Linear, Trigono
   embed_dim: 32
   lag_step: 32

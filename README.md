@@ -77,7 +77,6 @@ The ``.yaml`` files consist following kwargs:
 log_level: INFO
 
 fold: The index of the fold data to use for training/val/test
-time_pred_type: The type of time prediction: `interval` for the inter-event time, `timestamp` for the next timestamp
 
 data:
   batch_size: The batch size for training
