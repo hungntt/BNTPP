@@ -337,7 +337,7 @@ class Supervisor:
             elif len(pred_time.shape) == 2:
                 per_event = (pred_time.clamp(max=self._max_t) - batch_seq_dt).abs()
                 mask_event = (per_event * batch_one_hot.sum(dim=-1).bool())
-            return (mask_event * self._std_in_train + self._mean_in_train).sum()
+            return mask_event.sum() * self._std_in_train + self._mean_in_train
         except:
             return torch.tensor(-1)
 
