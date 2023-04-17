@@ -59,7 +59,7 @@ def load_dataset(dataset_dir, event_type_num, batch_size, val_batch_size=None, s
     return data, \
         {'train': train_set.seq_lengths, 'val': validation_set.seq_lengths,
          'test': test_set.seq_lengths}, \
-        max_t, granger_graph, mean_in_dts_train
+        max_t, granger_graph, mean_in_dts_train, mean_in_train, std_in_train
 
 
 class SequenceDataset(data_utils.Dataset):
@@ -155,12 +155,12 @@ class SequenceDataset(data_utils.Dataset):
         if mean_in is None or std_in is None:
             mean_in, std_in = self.get_mean_std_in()
         self.in_times = [(t - mean_in) / std_in for t in self.in_times]
-        self.in_dts = [(t / mean_in_dts) for t in self.in_dts]
+        self.in_dts = [(t - mean_in) / std_in for t in self.in_dts]
         # self.in_multi_dts = [[(t - mean_in) / std_in for t in ts] for ts in self.in_multi_dts]
-        self.out_dts = [(t / mean_in_dts) for t in self.out_dts]
 
         if self.scale_normalization != 0:
             self.out_times = [t / self.max_t_normalization * self.scale_normalization for t in self.out_times]
+            self.out_dts = [t / self.max_t_normalization * self.scale_normalization for t in self.out_dts]
 
         return self
 

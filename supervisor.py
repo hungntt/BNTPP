@@ -30,11 +30,12 @@ class Supervisor:
         self.loss_list_training = []
         self.loss_list_validation = []
         self.loss_list_test = []
-        self._data, self._seq_lengths, self._max_t, self._granger_graph, self._mean_dts_train = \
-            load_dataset(
-                    device=self._device,
-                    fold=self._fold,
-                    **self._data_kwargs)
+        self._data, self._seq_lengths, self._max_t, self._granger_graph, self._mean_dts_train, self._mean_in_train, \
+            self._std_in_train = load_dataset(
+                device=self._device,
+                fold=self._fold,
+                **self._data_kwargs)
+        self._mean_dts_train_in_days = self._mean_dts_train / (24 * 60 * 60)
         self._event_type_num = self._data_kwargs['event_type_num']
 
         if not self._train_kwargs['relation_inference']:
@@ -145,13 +146,13 @@ class Supervisor:
                 epoch_train_loss += loss.detach()
 
             lr_scheduler.step()
-            train_event_num, epoch_train_log_loss, epoch_train_ce_loss, epoch_train_ape, epoch_train_ae, \
+            train_event_num, epoch_train_log_loss, epoch_train_ce_loss, epoch_train_ae, \
                 epoch_train_top1_acc, epoch_train_top3_acc = self._evaluate(dataset='train')
-            val_event_num, epoch_val_log_loss, epoch_val_ce_loss, epoch_val_ape, epoch_val_ae, \
+            val_event_num, epoch_val_log_loss, epoch_val_ce_loss, epoch_val_ae, \
                 epoch_val_top1_acc, epoch_val_top3_acc = self._evaluate(dataset='val')
             nni.report_intermediate_result((epoch_val_log_loss / val_event_num).item())
 
-            test_event_num, epoch_test_log_loss, epoch_test_ce_loss, epoch_test_ape, epoch_test_ae, \
+            test_event_num, epoch_test_log_loss, epoch_test_ce_loss, epoch_test_ae, \
                 epoch_test_top1_acc, epoch_test_top3_acc = self._evaluate(dataset='test')
 
             if (epoch_num % log_every) == log_every - 1:
@@ -165,13 +166,12 @@ class Supervisor:
                 self.loss_list_test.append((epoch_test_log_loss / test_event_num).cpu().numpy())
 
                 message = '---Epoch.{} Val Negative Log-Likelihood per event: {:5f}; Cross-Entropy per event: {:5f}; ' \
-                          'MAPE: {:5f}; MAE: {:5f}; Acc_Top1: {:5f}, Acc_Top3: {:5f}   ' \
+                          'MAE: {:5f}; Acc_Top1: {:5f}, Acc_Top3: {:5f}   ' \
                     .format(
                         epoch_num,
                         epoch_val_log_loss / val_event_num,
                         epoch_val_ce_loss / val_event_num,
-                        epoch_val_ape / val_event_num * self._mean_dts_train / 86400,
-                        epoch_val_ae / val_event_num * self._mean_dts_train / 86400,
+                        (epoch_val_ae / val_event_num) / 86400,
                         epoch_val_top1_acc / val_event_num,
                         epoch_val_top3_acc / val_event_num
                 )
@@ -179,13 +179,12 @@ class Supervisor:
 
             if (epoch_num % test_every_n_epochs) == test_every_n_epochs - 1:
                 message = '---Epoch.{} Test Negative Log-Likelihood per event: {:5f}; Cross-Entropy per event: {:5f}; ' \
-                          'MAPE: {:5f}; MAE: {:5f}; Acc_Top1: {:5f}, Acc_Top3: {:5f}   ' \
+                          'MAE: {:5f}; Acc_Top1: {:5f}, Acc_Top3: {:5f}   ' \
                     .format(
                         epoch_num,
                         epoch_test_log_loss / test_event_num,
                         epoch_test_ce_loss / test_event_num,
-                        epoch_test_ape / test_event_num * self._mean_dts_train / 86400,
-                        epoch_test_ae / test_event_num * self._mean_dts_train / 86400,
+                        (epoch_test_ae / test_event_num) / 86400,
                         epoch_test_top1_acc / test_event_num,
                         epoch_test_top3_acc / test_event_num
                 )
@@ -214,7 +213,7 @@ class Supervisor:
         if load_model:
             self.load_model(epoch_num)
 
-        epoch_log_loss, epoch_ce_loss, epoch_ape, epoch_ae, epoch_top1_acc, epoch_top3_acc = 0, 0, 0, 0, 0, 0
+        epoch_log_loss, epoch_ce_loss, epoch_ae, epoch_top1_acc, epoch_top3_acc = 0, 0, 0, 0, 0
         self._model.eval()
         val_iterator = self._data['{}_loader'.format(dataset)]
 
@@ -224,9 +223,6 @@ class Supervisor:
             # self.model_opt.optimizer.zero_grad()
             torch.cuda.empty_cache()
             self._model.evaluate(batch)
-
-            ape = self._ape_pred_time(self._model.predict_event_time(max_t=self._max_t), batch.out_dts,
-                                      batch.out_onehots)
             ae = self._ae_pred_time(self._model.predict_event_time(max_t=self._max_t), batch.out_dts,
                                     batch.out_onehots)
             nll, ce = self._model.compute_loss(batch, train=False)
@@ -236,12 +232,11 @@ class Supervisor:
 
             epoch_log_loss += nll.detach()
             epoch_ce_loss += ce.detach()
-            epoch_ape += ape.detach()
             epoch_ae += ae.detach()
             epoch_top1_acc += top1_acc.detach()
             epoch_top3_acc += top3_acc.detach()
 
-            del nll, ce, ape, top1_acc, top3_acc
+            del nll, ce, top1_acc, top3_acc
             self.model_opt.optimizer.zero_grad()
             torch.cuda.empty_cache()
 
@@ -266,7 +261,7 @@ class Supervisor:
 
         event_num = torch.sum(self._seq_lengths['{}'.format(dataset)]).float()
 
-        return event_num, epoch_log_loss, epoch_ce_loss, epoch_ape, epoch_ae, epoch_top1_acc, epoch_top3_acc
+        return event_num, epoch_log_loss, epoch_ce_loss, epoch_ae, epoch_top1_acc, epoch_top3_acc
 
     def _test_final_n_epoch(self, n=5):
         """
@@ -286,17 +281,16 @@ class Supervisor:
         for i in range(n):
             epoch_num = epoch_list[i]
             self.load_model(epoch_num)
-            test_event_num, test_epoch_log_loss, test_epoch_ce_loss, test_epoch_ape, test_epoch_ae, test_epoch_top1_acc, \
+            test_event_num, test_epoch_log_loss, test_epoch_ce_loss, test_epoch_ae, test_epoch_top1_acc, \
                 test_epoch_top3_acc = self._evaluate(dataset='test', verbose=True)
             test_loss = test_epoch_log_loss / test_event_num
             message = '---Epoch.{} Test Negative Log-Likelihood per event: {:5f}; Cross-Entropy per event: {:5f}; ' \
-                      'MAPE: {:5f}; MAE: {:5f}; Acc_Top1: {:5f}, Acc_Top3: {:5f}   ' \
+                      'MAE: {:5f}; Acc_Top1: {:5f}, Acc_Top3: {:5f}   ' \
                 .format(
                     epoch_num,
                     test_epoch_log_loss / test_event_num,
                     test_epoch_ce_loss / test_event_num,
-                    test_epoch_ape / test_event_num * self._mean_dts_train / 86400,
-                    test_epoch_ae / test_event_num * self._mean_dts_train / 86400,
+                    (test_epoch_ae / test_event_num) / 86400,
                     test_epoch_top1_acc / test_event_num,
                     test_epoch_top3_acc / test_event_num
             )
@@ -337,12 +331,13 @@ class Supervisor:
         try:
             if len(pred_time.shape) == 3:
                 pred_time = pred_time[:, :, :-1]
-                per_event = (pred_time.clamp(max=self._max_t) - batch_seq_dt[:, :, None]).abs()
-                mask_event = (per_event * batch_one_hot).clamp(max=100.0)
+                gt = batch_seq_dt[:, :, None]
+                per_event = (pred_time.clamp(max=self._max_t) - gt).abs()
+                mask_event = (per_event * batch_one_hot)
             elif len(pred_time.shape) == 2:
                 per_event = (pred_time.clamp(max=self._max_t) - batch_seq_dt).abs()
-                mask_event = (per_event * batch_one_hot.sum(dim=-1).bool()).clamp(max=100.0)
-            return mask_event.sum()
+                mask_event = (per_event * batch_one_hot.sum(dim=-1).bool())
+            return (mask_event * self._std_in_train + self._mean_in_train).sum()
         except:
             return torch.tensor(-1)
 
