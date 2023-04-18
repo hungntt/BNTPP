@@ -32,12 +32,11 @@ def main(args):
         # Visualize the loss
         plt.plot(supervisor.loss_list_training, label='Training loss')
         plt.plot(supervisor.loss_list_validation, label='Validation loss')
-        plt.plot(supervisor.loss_list_test, label='Test loss')
         plt.legend()
         plt.title(
                 f'Loss of {supervisor_config["model"]["intensity_type"]}-{supervisor_config["model"]["encoder_type"]}')
         plt.xlabel('Epoch')
-        plt.ylabel('Loss')
+        plt.ylabel('NLL Loss')
         plt.show()
         supervisor._test_final_n_epoch(1)
 
@@ -45,8 +44,6 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset', default='helpdesk', type=str, help='Dataset name.')
-    parser.add_argument('--output_time_type', default='interval', type=str,
-                        help='Output time type. Options: Interval, Timestamp, Remaining time')
 
     args = parser.parse_args()
     main(args)

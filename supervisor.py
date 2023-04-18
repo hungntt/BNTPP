@@ -29,7 +29,6 @@ class Supervisor:
         self._logger = get_logger(self._log_dir, __name__, 'info.log', level=log_level)
         self.loss_list_training = []
         self.loss_list_validation = []
-        self.loss_list_test = []
         self._data, self._seq_lengths, self._max_t, self._granger_graph, self._mean_dts_train, self._mean_in_train, \
             self._std_in_train = load_dataset(
                 device=self._device,
@@ -152,9 +151,6 @@ class Supervisor:
                 epoch_val_top1_acc, epoch_val_top3_acc = self._evaluate(dataset='val')
             nni.report_intermediate_result((epoch_val_log_loss / val_event_num).item())
 
-            test_event_num, epoch_test_log_loss, epoch_test_ce_loss, epoch_test_ae, \
-                epoch_test_top1_acc, epoch_test_top3_acc = self._evaluate(dataset='test')
-
             if (epoch_num % log_every) == log_every - 1:
                 message = '---Epoch.{} Train Negative Overall Log-Likelihood per event: {:5f}. ' \
                     .format(epoch_num, epoch_train_loss / train_event_num)
@@ -163,7 +159,6 @@ class Supervisor:
                 self._logger.info(message)
                 self.loss_list_training.append((epoch_train_log_loss / train_event_num).cpu().numpy())
                 self.loss_list_validation.append((epoch_val_log_loss / val_event_num).cpu().numpy())
-                self.loss_list_test.append((epoch_test_log_loss / test_event_num).cpu().numpy())
 
                 message = '---Epoch.{} Val Negative Log-Likelihood per event: {:5f}; Cross-Entropy per event: {:5f}; ' \
                           'MAE: {:5f}; Acc_Top1: {:5f}, Acc_Top3: {:5f}   ' \
@@ -178,6 +173,8 @@ class Supervisor:
                 self._logger.info(message)
 
             if (epoch_num % test_every_n_epochs) == test_every_n_epochs - 1:
+                test_event_num, epoch_test_log_loss, epoch_test_ce_loss, epoch_test_ae, \
+                    epoch_test_top1_acc, epoch_test_top3_acc = self._evaluate(dataset='test', verbose=True)
                 message = '---Epoch.{} Test Negative Log-Likelihood per event: {:5f}; Cross-Entropy per event: {:5f}; ' \
                           'MAE: {:5f}; Acc_Top1: {:5f}, Acc_Top3: {:5f}   ' \
                     .format(
