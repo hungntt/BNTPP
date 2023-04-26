@@ -43,7 +43,8 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dataset', default='helpdesk', type=str, help='Dataset name.')
+    parser.add_argument('--dataset', default='helpdesk', type=str,
+                        help='Dataset name (default: helpdesk, other options depend on the defined dataset folder name')
 
     args = parser.parse_args()
     main(args)

@@ -12,25 +12,17 @@ We first conclude the recent research topics on deep TPPs as two main components
 
 - Formulation of conditional intensity function
 
-**TPP methods:**
+**List of reviewed TPP methods:**
 | Methods | History Encoder | Intensity Function | Relational Discovery | Learning Approaches | Released codes |
 |------------|-----------------|----------------------|----------------------------|---------------------|----------------------------------------------------------|
-| [RMTPP](https://www.kdd.org/kdd2016/papers/files/rpp1081-duA.pdf)     | RNN | Gompertz | / | MLE with
-SGD | https://github.com/musically-ut/tf_rmtpp                 |
-| [ERTPP](https://arxiv.org/pdf/1705.08982.pdf)      | LSTM | Gaussian | / | MLE with
-SGD | https://github.com/xiaoshuai09/Recurrent-Point-Process   |
-| [CTLSTM](https://arxiv.org/pdf/1612.09328.pdf)     | CTLSTM | Exp-decay + softplus | / | MLE with
-SGD | https://github.com/HMEIatJHU/neurawkes                   |
-| [FNNPP](https://arxiv.org/pdf/1905.09690.pdf)      | LSTM | FNNIntegral | / | MLE with
-SGD | https://github.com/omitakahiro/NeuralNetworkPointProcess |
-| [LogNormMix](https://arxiv.org/pdf/1909.12127.pdf) | LSTM | Log-norm Mixture | / | MLE with
-SGD | https://github.com/shchur/ifl-tpp                        |
-| [SAHP](https://arxiv.org/pdf/1907.07561.pdf)       | Transformer | Exp-decay + softplus | Attention Matrix | MLE with
-SGD | https://github.com/QiangAIResearcher/sahp_repo           |
-| [THP](https://arxiv.org/pdf/2002.09291.pdf)        | Transformer | Linear + softplus | Structure learning | MLE with
-SGD | https://github.com/SimiaoZuo/Transformer-Hawkes-Process  |
-| [DGNPP](https://dl.acm.org/doi/pdf/10.1145/3442381.3450135)      | Transformer | Exp-decay + softplus | Bilevel
-Structure learning | MLE with SGD | No available codes until now. |
+| [RMTPP](https://www.kdd.org/kdd2016/papers/files/rpp1081-duA.pdf)     | RNN | Gompertz | / | MLE with SGD | https://github.com/musically-ut/tf_rmtpp                 |
+| [ERTPP](https://arxiv.org/pdf/1705.08982.pdf)      | LSTM | Gaussian | / | MLE with SGD | https://github.com/xiaoshuai09/Recurrent-Point-Process   |
+| [CTLSTM](https://arxiv.org/pdf/1612.09328.pdf)     | CTLSTM | Exp-decay + softplus | / | MLE with SGD | https://github.com/HMEIatJHU/neurawkes                   |
+| [FNNPP](https://arxiv.org/pdf/1905.09690.pdf)      | LSTM | FNNIntegral | / | MLE with SGD | https://github.com/omitakahiro/NeuralNetworkPointProcess |
+| [LogNormMix](https://arxiv.org/pdf/1909.12127.pdf) | LSTM | Log-norm Mixture | / | MLE with SGD | https://github.com/shchur/ifl-tpp                        |
+| [SAHP](https://arxiv.org/pdf/1907.07561.pdf)       | Transformer | Exp-decay + softplus | Attention Matrix | MLE with SGD | https://github.com/QiangAIResearcher/sahp_repo           |
+| [THP](https://arxiv.org/pdf/2002.09291.pdf)        | Transformer | Linear + softplus | Structure learning | MLE with SGD | https://github.com/SimiaoZuo/Transformer-Hawkes-Process  |
+| [DGNPP](https://dl.acm.org/doi/pdf/10.1145/3442381.3450135)      | Transformer | Exp-decay + softplus | Bilevel Structure learning | MLE with SGD | No available codes until now. |
 
 ## Installation
 
@@ -59,18 +51,8 @@ We preprocess the raw data to make it suitable for training TPP models. The prep
 python ./scripts/generate_helpdesk_data.py
 ```
 
-### Training
-
-You can train the model with the following commands:
-
-```bash
-python main.py --dataset helpdesk
-python main.py --dataset BPI_Challenge_2012
-```
-
-*Note: Whenever you want to train a new model, please delete the old checkpoint directory
-at ``./experiment/{dataset_name}/{dataset_name}_debug``.*
-
+### Configuration
+A configuration file must be defined for each dataset is defined in ``./experiment/{dataset_name}/config.yaml``
 The ``.yaml`` files consist following kwargs:
 
 ```
@@ -120,6 +102,19 @@ gpu: The GPU number to use for training
 
 seed: Random Seed
 ```
+
+### Training
+You can train the model with the following commands:
+
+```bash
+python main.py --dataset helpdesk
+```
+```bash
+python main.py --dataset BPI_Challenge_2012
+```
+
+*Note: Whenever you want to train a new model, please delete the old checkpoint directory
+at ``./experiment/{dataset_name}/{dataset_name}_debug``.*
 
 ## References
 
