@@ -28,30 +28,38 @@ We first conclude the recent research topics on deep TPPs as two main components
 
 Requiring packages:
 
-```
+```bash
 pip install -r requirements.txt
 ```
 
 ### Dataset
 
 #### Converting from raw data to .pkl dataset
-We evaluate on two real-world datasets: ``helpdesk`` and ``bpi_challenge_2012``. These datasets are generated and split by Rama et al. [1]
-and located in ``./data/``. The data format is as follows:
-``./data/{dataset_name}/``
-The code for converting is also available in ``./scripts/``. For example:
+
+We evaluate on two real-world datasets: ``helpdesk`` and ``bpi_challenge_2012``. These datasets are generated and split
+by Rama et al. [1] for Tax et al. method and put them into a folder in located in ``./data/`` as
+follows: ``./data/{dataset_name}/``
+The script for converting is also available in ``./scripts/``. For example:
 
 ```bash
 python ./scripts/tax_dataloader.py --dataset BPI_Challenge_2012
 ```
 
+Other datasets generated from Rama-Maneiro et al. [1] for Tax et al. method such as BPI 2012 A, BPI 2012 Complete, BPI
+2012 O, BPI 2012 W, BPI 2012 W Complete, BPI 2013 Closed Problems, BPI 2013 Incidents, Env Permit, Sepsis can also be
+processed via this script.
+
 #### Preprocessing the .pkl dataset
-We preprocess the raw data to make it suitable for training TPP models. The preprocessing code is also available in ``./scripts/``. For example:
+
+We preprocess the raw data to make it suitable for training TPP models. The preprocessing code is also available
+in ``./scripts/``. For example:
 
 ```bash
 python ./scripts/generate_helpdesk_data.py
 ```
 
 ### Configuration
+
 A configuration file must be defined for each dataset is defined in ``./experiment/{dataset_name}/config.yaml``
 The ``.yaml`` files consist following kwargs:
 
@@ -104,11 +112,13 @@ seed: Random Seed
 ```
 
 ### Training
+
 You can train the model with the following commands:
 
 ```bash
 python main.py --dataset helpdesk
 ```
+
 ```bash
 python main.py --dataset BPI_Challenge_2012
 ```
@@ -122,4 +132,5 @@ at ``./experiment/{dataset_name}/{dataset_name}_debug``.*
 Benchmark,” IEEE Transactions on Services Computing, pp. 1–1, 2022, doi: https://doi.org/10.1109/tsc.2021.3139807.
 
 [2] H. Lin, C. Tan, L. Wu, Z. Gao, and S. Z. Li, “An Empirical Study: Extensive Deep Temporal Point Process,” arXiv.org,
+
 2021. https://arxiv.org/abs/2110.09823
